@@ -14,7 +14,7 @@ import { downloadBackupJson } from '@/lib/backup';
 import { CLOUD_MODE } from '@/lib/auth/firebase';
 import { secretsAdapter } from '@/lib/secrets';
 import { Link, useLocation } from 'react-router-dom';
-import { prefetchAppPages } from '@/routes';
+import { prefetchAppPages } from '@/pageLoaders';
 import { APP_NAME } from '@/constants/app';
 import { Info, Download } from 'lucide-react';
 import { OfflineIndicator } from '@/components/pwa/OfflineIndicator';
