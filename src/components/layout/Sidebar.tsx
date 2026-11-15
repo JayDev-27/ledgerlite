@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -66,6 +66,48 @@ const navClass =
         : 'text-deep-blue-900/60 hover:text-deep-blue-950 hover:bg-deep-blue-50/60 dark:text-white/50 dark:hover:text-white dark:hover:bg-white/[0.03]'
     );
 
+
+/**
+ * Wraps a list of NavLinks and slides ONE live glass capsule to the active
+ * link with a CSS spring — no view-transition snapshots, so nothing flashes
+ * opaque when it lands.
+ */
+const CapsuleGroup: React.FC<{ className?: string; children: React.ReactNode }> = ({ className, children }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const { pathname } = useLocation();
+  const [box, setBox] = useState<{ y: number; h: number } | null>(null);
+  const [animate, setAnimate] = useState(false);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = ref.current?.querySelector<HTMLElement>('a[aria-current="page"]');
+      setBox(el ? { y: el.offsetTop, h: el.offsetHeight } : null);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (ref.current) ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, [pathname]);
+
+  useLayoutEffect(() => {
+    if (box && !animate) requestAnimationFrame(() => setAnimate(true));
+  }, [box, animate]);
+
+  return (
+    <div ref={ref} className={clsx('relative', className)}>
+      <span
+        aria-hidden="true"
+        className={clsx(
+          'absolute left-0 right-0 top-0 rounded-xl bg-white shadow-sm dark:bg-transparent dark:liquid-glass-thin pointer-events-none',
+          animate && 'transition-[transform,height,opacity] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none'
+        )}
+        style={{ height: box?.h ?? 40, transform: `translate3d(0, ${box?.y ?? 0}px, 0)`, opacity: box ? 1 : 0 }}
+      />
+      {children}
+    </div>
+  );
+};
+
 export const Sidebar: React.FC = () => {
   const { isSidebarCollapsed: collapsed, toggleSidebar, openQuickAdd } = useUiStore();
   const { settings } = useSettingsStore();
@@ -100,15 +142,8 @@ export const Sidebar: React.FC = () => {
         className={navClass(collapsed)}
         title={collapsed ? item.label : undefined}
       >
-        {({ isActive }) => (
+        {() => (
           <>
-            {isActive && (
-              // One shared glass capsule: the view transition glides it between items
-              <span
-                aria-hidden="true"
-                className="vt-nav-active absolute inset-0 rounded-xl bg-white shadow-sm dark:bg-transparent dark:liquid-glass-thin"
-              />
-            )}
             <Icon className="relative w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
             {!collapsed && <span className="relative truncate">{item.label}</span>}
           </>
@@ -175,12 +210,12 @@ export const Sidebar: React.FC = () => {
       {/* Navigation */}
       <nav aria-label="Main" className="flex-1 px-3 overflow-y-auto">
         {!collapsed && <p className="px-3 pb-2 label-mono !text-[10px] text-deep-blue-900/35 dark:text-white/25">Workspace</p>}
-        <div className="space-y-0.5">{NAV_ITEMS.map((item) => renderItem(item, item.to === '/app'))}</div>
+        <CapsuleGroup className="space-y-0.5">{NAV_ITEMS.map((item) => renderItem(item, item.to === '/app'))}</CapsuleGroup>
       </nav>
 
       {/* Footer */}
       <div className="px-3 pb-4 pt-3 space-y-0.5">
-        {renderItem({ to: '/app/settings', label: 'Settings', icon: Settings })}
+        <CapsuleGroup>{renderItem({ to: '/app/settings', label: 'Settings', icon: Settings })}</CapsuleGroup>
         {collapsed && (
           <button
             onClick={toggleSidebar}
