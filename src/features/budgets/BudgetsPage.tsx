@@ -40,6 +40,8 @@ export const BudgetsPage: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState('2026-11');
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [budget, setBudget] = useState<Budget | undefined>();
+  // False when the selected month has no saved budget: show a set-up state, not invented numbers.
+  const [hasSavedBudget, setHasSavedBudget] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
   const [, setTransactions] = useState<Transaction[]>([]);
   const [metrics, setMetrics] = useState<BudgetPaceMetrics | null>(null);
@@ -104,12 +106,13 @@ export const BudgetsPage: React.FC = () => {
       ]);
 
       // If budget record doesn't exist yet, build placeholder budget
+      setHasSavedBudget(Boolean(currentBudget));
       let effectiveBudget = currentBudget;
       if (!effectiveBudget) {
         effectiveBudget = {
           id: `budget_${monthStr}`,
           month: monthStr,
-          totalLimit: 120000,
+          totalLimit: 0,
           categoryLimits: {},
           rollover: true,
         };
@@ -289,7 +292,36 @@ export const BudgetsPage: React.FC = () => {
         </div>
       </div>
 
-      {loading && !metrics ? (
+      {!loading && !hasSavedBudget ? (
+        <div className="rounded-card border border-cream-200 dark:border-white/[0.07] bg-white dark:bg-white/[0.02] px-6 py-16 sm:py-20 text-center">
+          <p className="label-mono !text-[10px] text-deep-blue-900/40 dark:text-white/30">
+            {format(parseReferenceDate(`${selectedMonth}-01`), 'MMMM yyyy')}
+          </p>
+          <h2 className="mt-4 font-display !text-[40px] leading-none text-deep-blue-950 dark:text-white">
+            No budget <em>yet.</em>
+          </h2>
+          <p className="mt-4 max-w-md mx-auto text-[15px] leading-relaxed text-deep-blue-900/55 dark:text-white/45">
+            Set a monthly limit and category envelopes, or let LedgerLite suggest one from your spending history.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-2">
+            <button
+              onClick={() => {
+                setEditCategoryId(undefined);
+                setIsEditModalOpen(true);
+              }}
+              className="h-10 px-5 rounded-xl text-[14px] font-medium bg-deep-blue-950 text-white dark:bg-white dark:text-black hover:opacity-90 transition-opacity"
+            >
+              Set budget
+            </button>
+            <button
+              onClick={handleOpenSuggestModal}
+              className="h-10 px-5 rounded-xl text-[14px] font-medium border border-cream-200 dark:border-white/10 text-deep-blue-950 dark:text-white hover:bg-deep-blue-50/60 dark:hover:bg-white/[0.05] transition-colors"
+            >
+              Suggest from history
+            </button>
+          </div>
+        </div>
+      ) : loading && !metrics ? (
         <div className="space-y-6">
           <SkeletonLoader count={4} variant="kpi" />
           <SkeletonLoader count={2} variant="card" className="h-72" />

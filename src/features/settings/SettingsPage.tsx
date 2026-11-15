@@ -212,7 +212,9 @@ export const SettingsPage: React.FC = () => {
   const handleReseed = async () => {
     if (
       window.confirm(
-        'This will regenerate the ~800 demo transactions from May to Nov 2026. Proceed?'
+        'Replace everything in your vault with ~800 sample transactions?\n\nThis permanently deletes your current transactions, budgets, rules and recurring items' +
+          (CLOUD_MODE ? ' from your cloud vault.' : '.') +
+          ' Download a backup first if you want to keep them.'
       )
     ) {
       setIsSeeding(true);
@@ -664,7 +666,7 @@ export const SettingsPage: React.FC = () => {
             className="flex items-center justify-center gap-2 p-3 rounded-xl border border-deep-blue-200 dark:border-dark-border hover:bg-cream-100 dark:hover:bg-dark-elevated text-deep-blue-900 dark:text-cream-100 text-xs font-semibold transition-colors"
           >
             <RefreshCw className={`w-4 h-4 text-deep-blue-600 dark:text-cream-300 ${isSeeding ? 'animate-spin' : ''}`} />
-            <span>Re-seed Demo Data (~800 Txs)</span>
+            <span>Replace with sample data</span>
           </button>
 
           <button
