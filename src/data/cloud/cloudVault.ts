@@ -49,8 +49,10 @@ class CloudSyncedRepository extends DexieRepository {
   ) {
     super(database);
     this.installHooks();
-    window.addEventListener('pagehide', this.flushNow);
-    document.addEventListener('visibilitychange', this.onVisibility);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pagehide', this.flushNow);
+      document.addEventListener('visibilitychange', this.onVisibility);
+    }
   }
 
   get cache(): FinanceDatabase {
@@ -181,8 +183,10 @@ class CloudSyncedRepository extends DexieRepository {
   async dispose(): Promise<void> {
     if (this.flushTimer) clearTimeout(this.flushTimer);
     await this.flush();
-    window.removeEventListener('pagehide', this.flushNow);
-    document.removeEventListener('visibilitychange', this.onVisibility);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('pagehide', this.flushNow);
+      document.removeEventListener('visibilitychange', this.onVisibility);
+    }
     this.db.close();
   }
 }
