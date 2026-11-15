@@ -49,39 +49,68 @@ function formatInline(text: string): React.ReactNode[] {
   return parts;
 }
 
-const MarkdownView: React.FC<{ content: string }> = ({ content }) => (
-  <div className="space-y-2.5 text-[15px] leading-[1.7] text-deep-blue-950/80 dark:text-white/75">
-    {content.split('\n').map((line, idx) => {
-      const t = line.trim();
-      if (!t) return null;
-      if (t.startsWith('### ') || t.startsWith('## ')) {
+const MarkdownView: React.FC<{ content: string; isStreaming?: boolean }> = ({ content, isStreaming }) => {
+  const lines = content.split('\n');
+  return (
+    <div className="space-y-2.5 text-[15px] leading-[1.7] text-deep-blue-950/80 dark:text-white/75">
+      {lines.map((line, idx) => {
+        const t = line.trim();
+        const isLast = idx === lines.length - 1;
+        if (!t) return isLast && isStreaming ? (
+          <span key={idx} className="inline-block w-1.5 h-4 ml-0.5 rounded-xs bg-deep-blue-500 dark:bg-gallery-iris align-middle animate-pulse" />
+        ) : null;
+        if (t.startsWith('### ') || t.startsWith('## ')) {
+          return (
+            <h3 key={idx} className="pt-2 text-[15px] font-semibold text-deep-blue-950 dark:text-white">
+              {formatInline(t.replace(/^#+\s/, ''))}
+              {isLast && isStreaming && (
+                <span className="inline-block w-1.5 h-4 ml-1 rounded-xs bg-deep-blue-500 dark:bg-gallery-iris align-middle animate-pulse" />
+              )}
+            </h3>
+          );
+        }
+        if (t.startsWith('- ') || t.startsWith('* ')) {
+          return (
+            <div key={idx} className="flex gap-3">
+              <span className="mt-[11px] w-1 h-1 rounded-full bg-current opacity-40 shrink-0" />
+              <span>
+                {formatInline(t.slice(2))}
+                {isLast && isStreaming && (
+                  <span className="inline-block w-1.5 h-4 ml-1 rounded-xs bg-deep-blue-500 dark:bg-gallery-iris align-middle animate-pulse" />
+                )}
+              </span>
+            </div>
+          );
+        }
+        const num = t.match(/^(\d+)\.\s+(.*)$/);
+        if (num) {
+          return (
+            <div key={idx} className="flex gap-3">
+              <span className="tabular-nums text-deep-blue-900/40 dark:text-white/35 shrink-0">{num[1]}.</span>
+              <span>
+                {formatInline(num[2] || '')}
+                {isLast && isStreaming && (
+                  <span className="inline-block w-1.5 h-4 ml-1 rounded-xs bg-deep-blue-500 dark:bg-gallery-iris align-middle animate-pulse" />
+                )}
+              </span>
+            </div>
+          );
+        }
         return (
-          <h3 key={idx} className="pt-2 text-[15px] font-semibold text-deep-blue-950 dark:text-white">
-            {formatInline(t.replace(/^#+\s/, ''))}
-          </h3>
+          <p key={idx}>
+            {formatInline(t)}
+            {isLast && isStreaming && (
+              <span className="inline-block w-1.5 h-4 ml-1 rounded-xs bg-deep-blue-500 dark:bg-gallery-iris align-middle animate-pulse" />
+            )}
+          </p>
         );
-      }
-      if (t.startsWith('- ') || t.startsWith('* ')) {
-        return (
-          <div key={idx} className="flex gap-3">
-            <span className="mt-[11px] w-1 h-1 rounded-full bg-current opacity-40 shrink-0" />
-            <span>{formatInline(t.slice(2))}</span>
-          </div>
-        );
-      }
-      const num = t.match(/^(\d+)\.\s+(.*)$/);
-      if (num) {
-        return (
-          <div key={idx} className="flex gap-3">
-            <span className="tabular-nums text-deep-blue-900/40 dark:text-white/35 shrink-0">{num[1]}.</span>
-            <span>{formatInline(num[2] || '')}</span>
-          </div>
-        );
-      }
-      return <p key={idx}>{formatInline(t)}</p>;
-    })}
-  </div>
-);
+      })}
+      {content.length === 0 && isStreaming && (
+        <span className="inline-block w-1.5 h-4 rounded-xs bg-deep-blue-500 dark:bg-gallery-iris align-middle animate-pulse" />
+      )}
+    </div>
+  );
+};
 
 const AssistantAvatar: React.FC = () => (
   <span
@@ -101,8 +130,18 @@ export const AssistantPage: React.FC = () => {
   const [usageStats, setUsageStats] = useState<TodayUsageStats | null>(null);
   const [expandedTools, setExpandedTools] = useState<string | null>(null);
   const [proposalStatuses, setProposalStatuses] = useState<Record<string, 'pending' | 'approved' | 'rejected'>>({});
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  const streamIntervalRef = useRef<number | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    return () => {
+      if (streamIntervalRef.current) {
+        window.clearInterval(streamIntervalRef.current);
+      }
+    };
+  }, []);
 
   const loadUsage = async () => {
     try {
@@ -169,18 +208,77 @@ export const AssistantPage: React.FC = () => {
         });
       }
 
+      const assistantId = crypto.randomUUID();
+      const fullText = result.text || '';
+
+      // Stop thinking indicator as soon as synthesized response arrives
+      setIsLoading(false);
+
+      if (!fullText) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: assistantId,
+            role: 'assistant',
+            text: '',
+            timestamp: new Date().toISOString(),
+            toolExecutions: result.toolExecutions,
+            proposals: result.proposals,
+            modelUsed: result.modelUsed,
+          },
+        ]);
+        await loadUsage();
+        return;
+      }
+
+      // Add message placeholder for smooth typewriter reveal
       setMessages((prev) => [
         ...prev,
         {
-          id: crypto.randomUUID(),
+          id: assistantId,
           role: 'assistant',
-          text: result.text,
+          text: '',
           timestamp: new Date().toISOString(),
           toolExecutions: result.toolExecutions,
           proposals: result.proposals,
           modelUsed: result.modelUsed,
         },
       ]);
+      setStreamingMessageId(assistantId);
+
+      // Stream text chunk by chunk like ChatGPT
+      await new Promise<void>((resolve) => {
+        let currentIndex = 0;
+        const totalLen = fullText.length;
+        // Adaptive step size: snappy pace that feels lively and smooth
+        const stepSize = Math.max(2, Math.min(10, Math.ceil(totalLen / 60)));
+        const intervalTime = 16;
+
+        if (streamIntervalRef.current) {
+          window.clearInterval(streamIntervalRef.current);
+        }
+
+        streamIntervalRef.current = window.setInterval(() => {
+          currentIndex = Math.min(totalLen, currentIndex + stepSize);
+          const currentSlice = fullText.slice(0, currentIndex);
+
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantId ? { ...m, text: currentSlice } : m))
+          );
+
+          chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+
+          if (currentIndex >= totalLen) {
+            if (streamIntervalRef.current) {
+              window.clearInterval(streamIntervalRef.current);
+              streamIntervalRef.current = null;
+            }
+            setStreamingMessageId(null);
+            resolve();
+          }
+        }, intervalTime);
+      });
+
       await loadUsage();
     } catch (err: unknown) {
       console.error('Agent error:', err);
@@ -316,7 +414,7 @@ export const AssistantPage: React.FC = () => {
                             </Link>
                           </div>
                         ) : (
-                          <MarkdownView content={m.text} />
+                          <MarkdownView content={m.text} isStreaming={streamingMessageId === m.id} />
                         )}
 
                         {m.toolExecutions && m.toolExecutions.length > 0 && (
@@ -400,14 +498,17 @@ export const AssistantPage: React.FC = () => {
                 {isLoading && (
                   <li className="flex gap-4" role="status" aria-label="Assistant is thinking">
                     <AssistantAvatar />
-                    <div className="flex items-center gap-1.5 pt-3">
-                      {[0, 1, 2].map((i) => (
-                        <span
-                          key={i}
-                          className="w-1.5 h-1.5 rounded-full bg-deep-blue-900/40 dark:bg-white/40 animate-pulse"
-                          style={{ animationDelay: `${i * 160}ms` }}
-                        />
-                      ))}
+                    <div className="pt-1.5">
+                      <div className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white dark:bg-dark-surface border border-cream-200 dark:border-white/[0.08] shadow-sm">
+                        {[0, 1, 2].map((i) => (
+                          <span
+                            key={i}
+                            className="w-2 h-2 rounded-full bg-deep-blue-500 dark:bg-gallery-iris animate-thinking-dot"
+                            style={{ animationDelay: `${i * 180}ms` }}
+                          />
+                        ))}
+                        <span className="sr-only">Thinking...</span>
+                      </div>
                     </div>
                   </li>
                 )}

@@ -3,7 +3,6 @@ import {
   TrendingUp,
   Wallet,
   AlertTriangle,
-  CheckCircle,
   Flame,
   ShieldCheck,
 } from 'lucide-react';
@@ -132,22 +131,22 @@ export const BudgetKpis: React.FC<BudgetKpisProps> = ({ metrics }) => {
             Projected Month-End
           </span>
           <div
-            className={`px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${
+            className={`px-2.5 py-1 rounded-full text-[11px] font-medium tracking-tight border flex items-center gap-1.5 shadow-xs ${
               status === 'over'
-                ? 'bg-status-danger-bg text-status-danger'
+                ? 'bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20'
                 : status === 'at-risk'
-                ? 'bg-status-warning-bg text-status-warning'
-                : 'bg-status-success-bg text-status-success'
+                ? 'bg-amber-50 text-amber-800 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20'
+                : 'bg-emerald-50/90 text-emerald-800 border-emerald-200/80 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
             }`}
           >
             {status === 'over' ? (
-              <AlertTriangle className="w-3.5 h-3.5" />
+              <AlertTriangle className="w-3 h-3 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={2} />
             ) : status === 'at-risk' ? (
-              <Flame className="w-3.5 h-3.5" />
+              <Flame className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" strokeWidth={2} />
             ) : (
-              <CheckCircle className="w-3.5 h-3.5" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 shrink-0 animate-pulse" />
             )}
-            <span className="capitalize">
+            <span>
               {status === 'over' ? 'Over Budget' : status === 'at-risk' ? 'At Risk' : 'On Track'}
             </span>
           </div>

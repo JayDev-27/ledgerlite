@@ -58,8 +58,8 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
     // For spending, going down is favorable (green), going up is more spend (red/amber)
     const isFavorable = comp.delta <= 0;
     const badgeBg = isFavorable
-      ? 'bg-status-success-bg text-status-success'
-      : 'bg-status-danger-bg text-status-danger';
+      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/80 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
+      : 'bg-rose-50 text-rose-700 border border-rose-200/80 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20';
 
     return (
       <div
@@ -198,12 +198,12 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
           <span
             className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${
               data.isMonthlyView === false || !budgetStatus
-                ? 'bg-cream-200 dark:bg-dark-elevated text-deep-blue-700 dark:text-cream-300'
+                ? 'bg-cream-200 dark:bg-dark-elevated text-deep-blue-700 dark:text-cream-300 border border-cream-300 dark:border-dark-border'
                 : budgetStatus.status === 'over'
-                ? 'bg-status-danger-bg text-status-danger'
+                ? 'bg-rose-50 text-rose-700 border border-rose-200/80 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20'
                 : budgetStatus.status === 'at-risk'
-                ? 'bg-status-warning-bg text-status-warning'
-                : 'bg-status-success-bg text-status-success'
+                ? 'bg-amber-50 text-amber-800 border border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20'
+                : 'bg-emerald-50/90 text-emerald-800 border border-emerald-200/80 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
             }`}
           >
             {data.isMonthlyView === false

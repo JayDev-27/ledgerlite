@@ -105,7 +105,7 @@ export const CategoryBudgetCard: React.FC<CategoryBudgetCardProps> = ({
 
         <div className="flex items-center gap-2">
           {rolloverAmount > 0 && (
-            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-status-success-bg text-status-success">
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20">
               +{formatCurrency(rolloverAmount, { compact: true, hideDecimals: true })} roll
             </span>
           )}
