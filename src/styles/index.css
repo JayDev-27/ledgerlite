@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg: #F5EEDD;
+    --color-surface: #FFFFFF;
+    --color-surface-subtle: #FAF6EE;
+    --color-border: #E5DAC6;
+    --color-primary: #16587B;
+    --color-primary-hover: #124764;
+    --color-secondary: #84B3CE;
+    --color-text-main: #0B2433;
+    --color-text-muted: #436375;
+    --color-text-faint: #6E8897;
+  }
+
+  .dark {
+    --color-bg: #081722;
+    --color-surface: #0F2536;
+    --color-surface-subtle: #17344B;
+    --color-border: #1F4766;
+    --color-primary: #84B3CE;
+    --color-primary-hover: #9FC7DE;
+    --color-secondary: #5A9DC2;
+    --color-text-main: #F5EEDD;
+    --color-text-muted: #B8CED9;
+    --color-text-faint: #7A9CAE;
+  }
+
+  html, body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--color-bg);
+    color: var(--color-text-main);
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Ensure numbers align properly in fintech tables and KPI cards */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Custom banking scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(132, 179, 206, 0.4);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(22, 88, 123, 0.6);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(132, 179, 206, 0.25);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(132, 179, 206, 0.5);
+}
+
+/* Skeleton shimmer animation */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
