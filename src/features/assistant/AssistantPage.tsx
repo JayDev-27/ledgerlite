@@ -57,14 +57,14 @@ const MarkdownView: React.FC<{ content: string; isStreaming?: boolean }> = ({ co
         const t = line.trim();
         const isLast = idx === lines.length - 1;
         if (!t) return isLast && isStreaming ? (
-          <span key={idx} className="inline-block w-1.5 h-4 ml-0.5 rounded-xs bg-deep-blue-500 dark:bg-gallery-iris align-middle animate-pulse" />
+          <span key={idx} className="inline-block w-1.5 h-4 ml-0.5 rounded-xs bg-deep-blue-950 dark:bg-white align-middle animate-pulse" />
         ) : null;
         if (t.startsWith('### ') || t.startsWith('## ')) {
           return (
             <h3 key={idx} className="pt-2 text-[15px] font-semibold text-deep-blue-950 dark:text-white">
               {formatInline(t.replace(/^#+\s/, ''))}
               {isLast && isStreaming && (
-                <span className="inline-block w-1.5 h-4 ml-1 rounded-xs bg-deep-blue-500 dark:bg-gallery-iris align-middle animate-pulse" />
+                <span className="inline-block w-1.5 h-4 ml-1 rounded-xs bg-deep-blue-950 dark:bg-white align-middle animate-pulse" />
               )}
             </h3>
           );
@@ -76,7 +76,7 @@ const MarkdownView: React.FC<{ content: string; isStreaming?: boolean }> = ({ co
               <span>
                 {formatInline(t.slice(2))}
                 {isLast && isStreaming && (
-                  <span className="inline-block w-1.5 h-4 ml-1 rounded-xs bg-deep-blue-500 dark:bg-gallery-iris align-middle animate-pulse" />
+                  <span className="inline-block w-1.5 h-4 ml-1 rounded-xs bg-deep-blue-950 dark:bg-white align-middle animate-pulse" />
                 )}
               </span>
             </div>
@@ -90,7 +90,7 @@ const MarkdownView: React.FC<{ content: string; isStreaming?: boolean }> = ({ co
               <span>
                 {formatInline(num[2] || '')}
                 {isLast && isStreaming && (
-                  <span className="inline-block w-1.5 h-4 ml-1 rounded-xs bg-deep-blue-500 dark:bg-gallery-iris align-middle animate-pulse" />
+                  <span className="inline-block w-1.5 h-4 ml-1 rounded-xs bg-deep-blue-950 dark:bg-white align-middle animate-pulse" />
                 )}
               </span>
             </div>
@@ -100,13 +100,13 @@ const MarkdownView: React.FC<{ content: string; isStreaming?: boolean }> = ({ co
           <p key={idx}>
             {formatInline(t)}
             {isLast && isStreaming && (
-              <span className="inline-block w-1.5 h-4 ml-1 rounded-xs bg-deep-blue-500 dark:bg-gallery-iris align-middle animate-pulse" />
+              <span className="inline-block w-1.5 h-4 ml-1 rounded-xs bg-deep-blue-950 dark:bg-white align-middle animate-pulse" />
             )}
           </p>
         );
       })}
       {content.length === 0 && isStreaming && (
-        <span className="inline-block w-1.5 h-4 rounded-xs bg-deep-blue-500 dark:bg-gallery-iris align-middle animate-pulse" />
+        <span className="inline-block w-1.5 h-4 rounded-xs bg-deep-blue-950 dark:bg-white align-middle animate-pulse" />
       )}
     </div>
   );
@@ -152,15 +152,17 @@ export const AssistantPage: React.FC = () => {
   };
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior, block: 'end' });
+    const scroller = document.scrollingElement || document.documentElement || document.body;
+    const targetY = Math.max(scroller.scrollHeight, document.body.scrollHeight, 100000);
+    try {
+      window.scrollTo({ top: targetY, behavior });
+    } catch {
+      window.scrollTo(0, targetY);
     }
-    const maxScroll = Math.max(
-      document.documentElement.scrollHeight,
-      document.body.scrollHeight
-    );
-    if (behavior === 'auto') {
-      window.scrollTo({ top: maxScroll, behavior: 'auto' });
+    if (chatEndRef.current) {
+      try {
+        chatEndRef.current.scrollIntoView({ behavior, block: 'end' });
+      } catch {}
     }
   };
 
@@ -171,13 +173,17 @@ export const AssistantPage: React.FC = () => {
   }, [settings.dailyAiBudgetHeavy, settings.dailyAiBudgetLight, settings.geminiHeavyModel, settings.geminiLightModel]);
 
   useEffect(() => {
-    if (!streamingMessageId && messages.length) {
-      const timer = setTimeout(() => {
-        scrollToBottom('smooth');
-      }, 50);
-      return () => clearTimeout(timer);
+    if (streamingMessageId) {
+      scrollToBottom('auto');
+    } else if (messages.length > 0) {
+      const t1 = setTimeout(() => scrollToBottom('smooth'), 40);
+      const t2 = setTimeout(() => scrollToBottom('smooth'), 160);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
     }
-  }, [messages.length, isLoading, streamingMessageId]);
+  }, [messages, streamingMessageId, isLoading]);
 
   // Auto-grow composer
   useEffect(() => {
@@ -410,7 +416,7 @@ export const AssistantPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <ol className="space-y-8 pb-8" aria-live="polite">
+              <ol className="space-y-8 pb-32 md:pb-28" aria-live="polite">
                 {messages.map((m) => {
                   if (m.role === 'user') {
                     return (
@@ -528,7 +534,7 @@ export const AssistantPage: React.FC = () => {
                         {[0, 1, 2].map((i) => (
                           <span
                             key={i}
-                            className="w-2 h-2 rounded-full bg-deep-blue-500 dark:bg-gallery-iris animate-thinking-dot"
+                            className="w-2 h-2 rounded-full bg-deep-blue-950 dark:bg-white animate-thinking-dot"
                             style={{ animationDelay: `${i * 180}ms` }}
                           />
                         ))}
@@ -537,7 +543,7 @@ export const AssistantPage: React.FC = () => {
                     </div>
                   </li>
                 )}
-                <li ref={chatEndRef} className="h-28 md:h-20 w-full shrink-0 scroll-mb-28 md:scroll-mb-20 list-none pointer-events-none" aria-hidden="true" />
+                <li ref={chatEndRef} className="h-4 w-full shrink-0 list-none pointer-events-none" aria-hidden="true" />
               </ol>
             )}
           </div>
