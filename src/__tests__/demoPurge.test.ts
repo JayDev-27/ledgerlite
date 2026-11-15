@@ -40,6 +40,13 @@ describe('Hosted first run — no demo data in real vaults', () => {
       updatedAt: later,
     });
 
+    // Simulate a Firestore round-trip, which returns map keys sorted alphabetically
+    for (const b of await repo.getBudgets()) {
+      if (b.id === 'budget_2026-12') continue;
+      const sorted = Object.fromEntries(Object.entries(b.categoryLimits).sort(([a], [c]) => a.localeCompare(c)).reverse());
+      await repo.setBudget({ ...b, categoryLimits: sorted });
+    }
+
     const removed = await purgeDemoData(repo);
     expect(removed).toBeGreaterThan(500);
 

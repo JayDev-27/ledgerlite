@@ -626,9 +626,14 @@ export async function seedCategoriesOnly(repo: Repository): Promise<boolean> {
  * user records get random UUIDs. Budgets share the budget_YYYY-MM pattern with
  * user budgets, so only budgets identical to the generated demo values are removed.
  */
+const DEMO_PURGE_VERSION = 2;
+/** Key-order-independent JSON (Firestore returns map keys sorted). */
+const canonical = (o: Record<string, number>) =>
+  JSON.stringify(Object.keys(o).sort().map((k) => [k, o[k]]));
+
 export async function purgeDemoData(repo: Repository): Promise<number> {
-  const seededAt = await repo.getSetting<string>('seedTimestamp');
-  if (!seededAt) return 0;
+  // Versioned marker: every vault is cleaned once per purge revision.
+  if ((await repo.getSetting<number>('demoPurgeVersion')) === DEMO_PURGE_VERSION) return 0;
   let removed = 0;
   // A budget is demo only if it is exactly what the seed generated for that month.
   const seedBudgets = new Map(generateSeedData().budgets.map((b) => [b.id, b]));
@@ -638,7 +643,7 @@ export async function purgeDemoData(repo: Repository): Promise<number> {
       !!s0 &&
       s0.totalLimit === b.totalLimit &&
       s0.rollover === b.rollover &&
-      JSON.stringify(s0.categoryLimits) === JSON.stringify(b.categoryLimits)
+      canonical(s0.categoryLimits) === canonical(b.categoryLimits)
     );
   };
 
@@ -659,5 +664,6 @@ export async function purgeDemoData(repo: Repository): Promise<number> {
     }
   }
   await repo.setSetting('seedTimestamp', '');
+  await repo.setSetting('demoPurgeVersion', DEMO_PURGE_VERSION);
   return removed;
 }
