@@ -5,9 +5,11 @@ import {
   Moon,
   Plus,
   Shield,
+  WifiOff,
 } from 'lucide-react';
 import { useThemeStore } from '@/store/themeStore';
 import { useUiStore } from '@/store/uiStore';
+import { usePwa } from '@/lib/pwa';
 import { APP_NAME } from '@/constants/app';
 
 const ROUTE_TITLES: Record<string, { title: string; subtitle: string }> = {
@@ -23,6 +25,7 @@ export const Header: React.FC = () => {
   const location = useLocation();
   const { resolvedTheme, toggleTheme } = useThemeStore();
   const { openQuickAdd } = useUiStore();
+  const { isOnline } = usePwa();
 
   const currentRoute = ROUTE_TITLES[location.pathname] || {
     title: APP_NAME,
@@ -44,21 +47,32 @@ export const Header: React.FC = () => {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Storage Persisted Pill */}
-          <div
-            className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border text-deep-blue-700 dark:text-cream-300"
-            title="Data is stored privately in browser IndexedDB"
-          >
-            <Shield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Local Vault</span>
-          </div>
+          {/* Storage / Offline Status Pill */}
+          {!isOnline ? (
+            <div
+              role="status"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200"
+              title="Device is offline. Local-first features work 100%."
+            >
+              <WifiOff className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
+              <span className="hidden sm:inline">Offline (Vault Active)</span>
+            </div>
+          ) : (
+            <div
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border text-deep-blue-700 dark:text-cream-300"
+              title="Data is stored privately in browser IndexedDB"
+            >
+              <Shield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Local Vault</span>
+            </div>
+          )}
 
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-xl text-deep-blue-700 dark:text-cream-200 hover:bg-cream-200/70 dark:hover:bg-dark-elevated transition-colors border border-transparent hover:border-cream-300 dark:hover:border-dark-border"
+            className="p-2 rounded-xl text-deep-blue-700 dark:text-cream-200 hover:bg-cream-200/70 dark:hover:bg-dark-elevated transition-colors border border-transparent hover:border-cream-300 dark:hover:border-dark-border focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500 focus-visible:ring-offset-2"
             title={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
-            aria-label="Toggle theme"
+            aria-label={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
           >
             {resolvedTheme === 'dark' ? (
               <Sun className="w-4 h-4 text-amber-300" />
@@ -70,7 +84,8 @@ export const Header: React.FC = () => {
           {/* Quick Add CTA Button */}
           <button
             onClick={openQuickAdd}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 active:bg-deep-blue-700 text-cream-100 text-sm font-medium shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-sky-400"
+            aria-label="Quick Add Expense (shortcut N)"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 active:bg-deep-blue-700 text-cream-100 text-sm font-medium shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500 focus-visible:ring-offset-2"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden xs:inline">Quick Add</span>

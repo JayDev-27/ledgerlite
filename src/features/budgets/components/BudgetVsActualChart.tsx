@@ -41,7 +41,34 @@ export const BudgetVsActualChart: React.FC<BudgetVsActualChartProps> = ({
   }
 
   return (
-    <div className="h-80 w-full">
+    <div
+      role="region"
+      aria-label="Budget versus actual spending comparison chart and summary table"
+      className="h-80 w-full"
+    >
+      {/* Screen-reader accessible data table */}
+      <table className="sr-only">
+        <caption>Budget vs actual spending comparison</caption>
+        <thead>
+          <tr>
+            <th scope="col">Category</th>
+            <th scope="col">Budget Limit</th>
+            <th scope="col">Spent</th>
+            <th scope="col">Percentage Used</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row) => (
+            <tr key={row.name}>
+              <td>{row.name}</td>
+              <td>{formatCurrency(row.limit)}</td>
+              <td>{formatCurrency(row.spent)}</td>
+              <td>{row.percentUsed.toFixed(0)}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}

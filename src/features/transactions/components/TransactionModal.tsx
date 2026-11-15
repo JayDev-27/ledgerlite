@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import type { Category, PaymentMethod, RecurringCadence, Transaction } from '@/types';
 import { transactionSchema, TransactionFormData } from '../schemas';
+import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   const [recurringCadence, setRecurringCadence] = useState<RecurringCadence>('monthly');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const modalRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose });
 
   useEffect(() => {
     if (isOpen) {
@@ -184,7 +186,10 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-xl bg-white dark:bg-dark-surface rounded-modal border border-cream-200 dark:border-dark-border shadow-modal overflow-hidden transform transition-all my-auto">
+      <div
+        ref={modalRef}
+        className="w-full max-w-xl bg-white dark:bg-dark-surface rounded-modal border border-cream-200 dark:border-dark-border shadow-modal overflow-hidden transform transition-all my-auto"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-cream-200 dark:border-dark-border">
           <h3 id="modal-tx-title" className="font-bold text-base text-deep-blue-950 dark:text-cream-100">
@@ -192,7 +197,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
           </h3>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-deep-blue-700 dark:text-cream-300 hover:bg-cream-100 dark:hover:bg-dark-elevated transition-colors"
+            aria-label="Close dialog"
+            title="Close dialog"
+            className="p-1 rounded-lg text-deep-blue-700 dark:text-cream-300 hover:bg-cream-100 dark:hover:bg-dark-elevated transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
           >
             <X className="w-5 h-5" />
           </button>
@@ -358,7 +365,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   <button
                     type="button"
                     onClick={() => handleRemoveTag(t)}
-                    className="hover:text-status-danger"
+                    aria-label={`Remove tag ${t}`}
+                    title={`Remove tag ${t}`}
+                    className="hover:text-status-danger rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-deep-blue-500"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -404,7 +413,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setReceiptImage(null)}
-                  className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-deep-blue-950/80 text-white hover:bg-status-danger transition-colors"
+                  aria-label="Remove receipt photo"
+                  title="Remove receipt photo"
+                  className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-deep-blue-950/80 text-white hover:bg-status-danger transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-200"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

@@ -40,7 +40,38 @@ export const StackedCategoryBarChart: React.FC<StackedCategoryBarChartProps> = (
   }
 
   return (
-    <div className="h-80 w-full">
+    <div
+      role="region"
+      aria-label="Stacked category breakdown bar chart and summary table"
+      className="h-80 w-full"
+    >
+      {/* Screen-reader accessible data table */}
+      <table className="sr-only">
+        <caption>Category spending over time</caption>
+        <thead>
+          <tr>
+            <th scope="col">Period</th>
+            {categories.map((c) => (
+              <th key={c.key} scope="col">
+                {c.name}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row, idx) => (
+            <tr key={idx}>
+              <td>{row.bucketLabel}</td>
+              {categories.map((c) => (
+                <td key={c.key}>
+                  {formatCurrency(Number(row[c.key] || 0))}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}

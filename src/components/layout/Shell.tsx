@@ -13,6 +13,39 @@ import { generateDueRecurringTransactions } from '@/features/recurring/recurring
 import { downloadBackupJson } from '@/lib/backup';
 import { APP_NAME } from '@/constants/app';
 import { Sparkles, AlertTriangle, Download } from 'lucide-react';
+import { OfflineIndicator } from '@/components/pwa/OfflineIndicator';
+import { PwaInstallBanner } from '@/components/pwa/PwaInstallBanner';
+
+export function isQuickAddShortcutAllowed(
+  e: {
+    key: string;
+    ctrlKey?: boolean;
+    metaKey?: boolean;
+    altKey?: boolean;
+    target: EventTarget | { tagName?: string; isContentEditable?: boolean } | null;
+  },
+  isQuickAddOpen: boolean,
+  hasActiveDialog: boolean
+): boolean {
+  if (isQuickAddOpen || hasActiveDialog) return false;
+
+  const target = e.target as { tagName?: string; isContentEditable?: boolean } | null;
+  if (
+    target &&
+    (target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable)
+  ) {
+    return false;
+  }
+
+  if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    return true;
+  }
+
+  return false;
+}
 
 export const Shell: React.FC = () => {
   const { isQuickAddOpen, openQuickAdd, closeQuickAdd } = useUiStore();
@@ -90,20 +123,11 @@ export const Shell: React.FC = () => {
         return;
       }
 
-      // Check if user is typing in an input/textarea/select/contentEditable
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
+      const hasActiveDialog = Boolean(
+        typeof document !== 'undefined' && document.querySelector('[role="dialog"]')
+      );
 
-      // 'n' or 'N' opens Quick Add
-      if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (isQuickAddShortcutAllowed(e, isQuickAddOpen, hasActiveDialog)) {
         e.preventDefault();
         openQuickAdd();
       }
@@ -115,12 +139,24 @@ export const Shell: React.FC = () => {
 
   return (
     <div className="min-h-screen flex bg-cream-100 dark:bg-dark-bg text-deep-blue-950 dark:text-cream-100 antialiased selection:bg-cream-300 selection:text-deep-blue-900 transition-colors">
+      {/* Skip to Main Content Link */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-deep-blue-500 focus:text-cream-100 focus:font-semibold focus:rounded-lg focus:shadow-modal focus:ring-2 focus:ring-deep-blue-400 focus:ring-offset-2"
+      >
+        Skip to main content
+      </a>
+
       {/* Desktop Sidebar */}
       <Sidebar />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
         <Header />
+
+        {/* PWA Offline & Install Banners */}
+        <OfflineIndicator />
+        <PwaInstallBanner />
 
         {/* First-run seed notification toast */}
         {seedNotice && (
@@ -171,7 +207,7 @@ export const Shell: React.FC = () => {
           </div>
         )}
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+        <main id="main-content" tabIndex={-1} className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto focus:outline-none">
           <Outlet />
         </main>
       </div>

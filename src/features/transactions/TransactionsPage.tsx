@@ -41,6 +41,7 @@ import { RuleLearningModal } from './components/RuleLearningModal';
 import { CategoriesModal } from '@/features/categories/CategoriesModal';
 import { RulesModal } from '@/features/rules/RulesModal';
 import { RecurringModal } from '@/features/recurring/RecurringModal';
+import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 
 export const TransactionsPage: React.FC = () => {
   // Primary Data State
@@ -87,6 +88,10 @@ export const TransactionsPage: React.FC = () => {
 
   // Receipt Preview
   const [previewReceiptUrl, setPreviewReceiptUrl] = useState<string | null>(null);
+  const receiptModalRef = useFocusTrap<HTMLDivElement>({
+    isOpen: !!previewReceiptUrl,
+    onClose: () => setPreviewReceiptUrl(null),
+  });
 
   // Undo Toast State
   const [lastDeletedTx, setLastDeletedTx] = useState<Transaction | null>(null);
@@ -1108,13 +1113,20 @@ export const TransactionsPage: React.FC = () => {
         <div
           role="dialog"
           aria-modal="true"
+          aria-label="Receipt preview"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-deep-blue-950/80 backdrop-blur-sm animate-fadeIn"
           onClick={() => setPreviewReceiptUrl(null)}
         >
-          <div className="relative max-w-2xl max-h-[90vh] bg-white dark:bg-dark-surface p-2 rounded-2xl shadow-modal overflow-hidden">
+          <div
+            ref={receiptModalRef}
+            className="relative max-w-2xl max-h-[90vh] bg-white dark:bg-dark-surface p-2 rounded-2xl shadow-modal overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               onClick={() => setPreviewReceiptUrl(null)}
-              className="absolute top-3 right-3 p-1.5 rounded-full bg-deep-blue-950/80 text-white hover:bg-black transition-colors"
+              aria-label="Close receipt preview"
+              title="Close receipt preview"
+              className="absolute top-3 right-3 p-1.5 rounded-full bg-deep-blue-950/80 text-white hover:bg-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-200"
             >
               <X className="w-4 h-4" />
             </button>

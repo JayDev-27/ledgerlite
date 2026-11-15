@@ -55,6 +55,7 @@ import { SpendTrendChart, SpendTrendPoint } from '@/features/dashboard/component
 import { NeedWantSavingsSplit } from '@/features/dashboard/components/NeedWantSavingsSplit';
 import { TopMerchantsLeaderboard, TopMerchantItem } from '@/features/dashboard/components/TopMerchantsLeaderboard';
 import { PaymentMethodSplit, PaymentMethodItem } from '@/features/dashboard/components/PaymentMethodSplit';
+import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 
 const PERIOD_BUTTONS: Array<{ type: PeriodType; label: string }> = [
   { type: 'day', label: 'Day' },
@@ -91,6 +92,16 @@ export const ReportsPage: React.FC = () => {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const historyModalRef = useFocusTrap<HTMLDivElement>({
+    isOpen: historyOpen,
+    onClose: () => setHistoryOpen(false),
+  });
+
+  const customPickerRef = useFocusTrap<HTMLDivElement>({
+    isOpen: showCustomPicker,
+    onClose: () => setShowCustomPicker(false),
+  });
 
   // Compute current period range based on active type and options
   const currentPeriod = useMemo<PeriodRange>(() => {
@@ -1080,18 +1091,31 @@ export const ReportsPage: React.FC = () => {
 
       {/* Report History Drawer Modal */}
       {historyOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border rounded-2xl max-w-2xl w-full p-6 space-y-4 max-h-[85vh] flex flex-col shadow-card">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reports-vault-title"
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setHistoryOpen(false);
+          }}
+        >
+          <div
+            ref={historyModalRef}
+            className="bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border rounded-2xl max-w-2xl w-full p-6 space-y-4 max-h-[85vh] flex flex-col shadow-card"
+          >
             <div className="flex items-center justify-between border-b border-cream-200 dark:border-dark-border pb-3">
               <div className="flex items-center gap-2">
                 <History className="w-5 h-5 text-deep-blue-700 dark:text-cream-200" />
-                <h3 className="text-base font-bold text-deep-blue-950 dark:text-cream-100">
+                <h3 id="reports-vault-title" className="text-base font-bold text-deep-blue-950 dark:text-cream-100">
                   Archived Reports Vault
                 </h3>
               </div>
               <button
                 onClick={() => setHistoryOpen(false)}
-                className="p-1 rounded-lg text-deep-blue-700 dark:text-cream-300 hover:bg-cream-100 dark:hover:bg-dark-elevated"
+                aria-label="Close archived reports vault"
+                title="Close archived reports vault"
+                className="p-1 rounded-lg text-deep-blue-700 dark:text-cream-300 hover:bg-cream-100 dark:hover:bg-dark-elevated transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1130,7 +1154,8 @@ export const ReportsPage: React.FC = () => {
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <button
                         onClick={(e) => handleDeleteSavedReport(e, saved.id)}
-                        className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                        aria-label={`Delete report ${saved.title}`}
+                        className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
                         title="Delete report"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1144,7 +1169,7 @@ export const ReportsPage: React.FC = () => {
             <div className="pt-3 border-t border-cream-200 dark:border-dark-border flex justify-end">
               <button
                 onClick={() => setHistoryOpen(false)}
-                className="px-4 py-2 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold"
+                className="px-4 py-2 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
               >
                 Close Vault
               </button>
@@ -1155,11 +1180,32 @@ export const ReportsPage: React.FC = () => {
 
       {/* Custom Date Range Picker Modal */}
       {showCustomPicker && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-card">
-            <h3 className="text-sm font-bold text-deep-blue-950 dark:text-cream-100">
-              Select Custom Period Range
-            </h3>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="custom-picker-title"
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowCustomPicker(false);
+          }}
+        >
+          <div
+            ref={customPickerRef}
+            className="bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-card"
+          >
+            <div className="flex items-center justify-between">
+              <h3 id="custom-picker-title" className="text-sm font-bold text-deep-blue-950 dark:text-cream-100">
+                Select Custom Period Range
+              </h3>
+              <button
+                onClick={() => setShowCustomPicker(false)}
+                aria-label="Close custom range dialog"
+                title="Close custom range dialog"
+                className="p-1 rounded-lg text-deep-blue-700 dark:text-cream-300 hover:bg-cream-100 dark:hover:bg-dark-elevated transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-deep-blue-700 dark:text-cream-300 mb-1">
@@ -1169,7 +1215,7 @@ export const ReportsPage: React.FC = () => {
                   type="date"
                   value={tempCustomStart || currentPeriod.startDate}
                   onChange={(e) => setTempCustomStart(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-cream-50 dark:bg-dark-elevated border border-cream-300 dark:border-dark-border text-deep-blue-950 dark:text-cream-100"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-cream-50 dark:bg-dark-elevated border border-cream-300 dark:border-dark-border text-deep-blue-950 dark:text-cream-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
                 />
               </div>
               <div>
@@ -1180,14 +1226,14 @@ export const ReportsPage: React.FC = () => {
                   type="date"
                   value={tempCustomEnd || currentPeriod.endDate}
                   onChange={(e) => setTempCustomEnd(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-cream-50 dark:bg-dark-elevated border border-cream-300 dark:border-dark-border text-deep-blue-950 dark:text-cream-100"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-cream-50 dark:bg-dark-elevated border border-cream-300 dark:border-dark-border text-deep-blue-950 dark:text-cream-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
                 />
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 onClick={() => setShowCustomPicker(false)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-deep-blue-700 dark:text-cream-300 hover:bg-cream-100"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-deep-blue-700 dark:text-cream-300 hover:bg-cream-100 dark:hover:bg-dark-elevated transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
               >
                 Cancel
               </button>
@@ -1200,7 +1246,7 @@ export const ReportsPage: React.FC = () => {
                   setActiveSavedReportId(null);
                   setShowCustomPicker(false);
                 }}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-deep-blue-500 text-cream-100 hover:bg-deep-blue-600"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-deep-blue-500 text-cream-100 hover:bg-deep-blue-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
               >
                 Apply Range
               </button>

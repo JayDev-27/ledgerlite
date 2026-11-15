@@ -31,7 +31,34 @@ export const PaymentMethodSplit: React.FC<PaymentMethodSplitProps> = ({ data }) 
   }
 
   return (
-    <div className="flex flex-col sm:flex-row items-center gap-6 h-80">
+    <div
+      role="region"
+      aria-label="Payment method distribution chart and summary table"
+      className="flex flex-col sm:flex-row items-center gap-6 h-80"
+    >
+      {/* Screen-reader accessible data table */}
+      <table className="sr-only">
+        <caption>Payment method breakdown</caption>
+        <thead>
+          <tr>
+            <th scope="col">Payment Method</th>
+            <th scope="col">Amount</th>
+            <th scope="col">Transactions</th>
+            <th scope="col">Percentage</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((item) => (
+            <tr key={item.id}>
+              <td>{item.name}</td>
+              <td>{formatCurrency(item.amount)}</td>
+              <td>{item.txCount}</td>
+              <td>{item.percent.toFixed(1)}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
       <div className="w-full sm:w-1/2 h-64 flex items-center justify-center">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>

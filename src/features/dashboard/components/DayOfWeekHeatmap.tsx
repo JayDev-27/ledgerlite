@@ -39,7 +39,34 @@ export const DayOfWeekHeatmap: React.FC<DayOfWeekHeatmapProps> = ({ data }) => {
   );
 
   return (
-    <div className="space-y-4">
+    <div
+      role="region"
+      aria-label="Day of week spending heatmap and summary table"
+      className="space-y-4"
+    >
+      {/* Screen-reader accessible data table */}
+      <table className="sr-only">
+        <caption>Day of week spending breakdown</caption>
+        <thead>
+          <tr>
+            <th scope="col">Day</th>
+            <th scope="col">Total Amount</th>
+            <th scope="col">Transactions</th>
+            <th scope="col">Average Spend</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((d) => (
+            <tr key={d.dayName}>
+              <td>{d.dayName}</td>
+              <td>{formatCurrency(d.totalAmount)}</td>
+              <td>{d.txCount}</td>
+              <td>{formatCurrency(d.averageSpend)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
       <div className="flex items-center justify-between text-xs text-deep-blue-700 dark:text-cream-300">
         <span>
           Peak Spending Day:{' '}

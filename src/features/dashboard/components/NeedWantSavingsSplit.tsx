@@ -51,7 +51,34 @@ export const NeedWantSavingsSplit: React.FC<NeedWantSavingsSplitProps> = ({
   ];
 
   return (
-    <div className="space-y-5">
+    <div
+      role="region"
+      aria-label="50/30/20 Need, Want, and Savings allocation progress and summary"
+      className="space-y-5"
+    >
+      {/* Screen-reader accessible data table */}
+      <table className="sr-only">
+        <caption>50/30/20 budget pillar breakdown</caption>
+        <thead>
+          <tr>
+            <th scope="col">Pillar</th>
+            <th scope="col">Target</th>
+            <th scope="col">Actual</th>
+            <th scope="col">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {pillars.map((p) => (
+            <tr key={p.title}>
+              <td>{p.title}</td>
+              <td>{p.target}%</td>
+              <td>{p.actual}%</td>
+              <td>{formatCurrency(p.amount)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
       {/* Target vs Actual Progress Meters */}
       <div className="space-y-4">
         {pillars.map((p) => {

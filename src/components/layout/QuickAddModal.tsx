@@ -16,6 +16,7 @@ import { parseQuickAddExpense } from '@/lib/quickAddAi';
 import { formatCurrency } from '@/lib/formatters';
 import { DEFAULT_CATEGORIES } from '@/data/categories';
 import { PaymentMethod } from '@/types';
+import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 
 export const QuickAddModal: React.FC = () => {
   const { isQuickAddOpen, closeQuickAdd } = useUiStore();
@@ -35,6 +36,11 @@ export const QuickAddModal: React.FC = () => {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const focusTrapRef = useFocusTrap<HTMLDivElement>({
+    isOpen: isQuickAddOpen,
+    onClose: closeQuickAdd,
+    autoFocus: false,
+  });
 
   useEffect(() => {
     if (isQuickAddOpen) {
@@ -155,19 +161,23 @@ export const QuickAddModal: React.FC = () => {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Quick Add Expense"
+      aria-labelledby="quick-add-title"
       className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-deep-blue-950/60 backdrop-blur-sm animate-fadeIn"
       onClick={(e) => {
         if (e.target === e.currentTarget) closeQuickAdd();
       }}
     >
-      <div className="w-full max-w-lg bg-white dark:bg-dark-surface rounded-modal border border-cream-300 dark:border-dark-border shadow-modal overflow-hidden transform transition-all">
+      <div
+        ref={focusTrapRef}
+        className="w-full max-w-lg bg-white dark:bg-dark-surface rounded-modal border border-cream-300 dark:border-dark-border shadow-modal overflow-hidden transform transition-all"
+      >
         {/* Header Tabs */}
         <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-cream-200 dark:border-dark-border">
           <div className="flex items-center gap-3">
             <button
+              id="quick-add-title"
               onClick={() => setMode('quick')}
-              className={`text-sm font-semibold pb-1 border-b-2 transition-colors ${
+              className={`text-sm font-semibold pb-1 border-b-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500 ${
                 mode === 'quick'
                   ? 'border-deep-blue-500 text-deep-blue-900 dark:text-cream-100'
                   : 'border-transparent text-deep-blue-700/60 dark:text-cream-400 hover:text-deep-blue-900'
@@ -181,7 +191,7 @@ export const QuickAddModal: React.FC = () => {
 
             <button
               onClick={() => setMode('manual')}
-              className={`text-sm font-semibold pb-1 border-b-2 transition-colors ${
+              className={`text-sm font-semibold pb-1 border-b-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500 ${
                 mode === 'manual'
                   ? 'border-deep-blue-500 text-deep-blue-900 dark:text-cream-100'
                   : 'border-transparent text-deep-blue-700/60 dark:text-cream-400 hover:text-deep-blue-900'
@@ -193,7 +203,9 @@ export const QuickAddModal: React.FC = () => {
 
           <button
             onClick={closeQuickAdd}
-            className="p-1 rounded-lg text-deep-blue-700 dark:text-cream-300 hover:bg-cream-100 dark:hover:bg-dark-elevated transition-colors"
+            aria-label="Close dialog"
+            title="Close dialog"
+            className="p-1 rounded-lg text-deep-blue-700 dark:text-cream-300 hover:bg-cream-100 dark:hover:bg-dark-elevated transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
           >
             <X className="w-5 h-5" />
           </button>

@@ -31,7 +31,34 @@ export const CumulativePaceChart: React.FC<CumulativePaceChartProps> = ({
   }
 
   return (
-    <div className="h-80 w-full">
+    <div
+      role="region"
+      aria-label="Cumulative monthly budget burn pace chart and summary table"
+      className="h-80 w-full"
+    >
+      {/* Screen-reader accessible data table */}
+      <table className="sr-only">
+        <caption>Cumulative monthly budget pacing breakdown</caption>
+        <thead>
+          <tr>
+            <th scope="col">Day</th>
+            <th scope="col">Ideal Linear Pace</th>
+            <th scope="col">Actual Cumulative Spend</th>
+            <th scope="col">Monthly Limit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((p) => (
+            <tr key={p.day}>
+              <td>Day {p.day} ({p.date})</td>
+              <td>{formatCurrency(p.idealCumulative)}</td>
+              <td>{typeof p.actualCumulative === 'number' ? formatCurrency(p.actualCumulative) : 'N/A'}</td>
+              <td>{formatCurrency(totalLimit)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
           data={data}

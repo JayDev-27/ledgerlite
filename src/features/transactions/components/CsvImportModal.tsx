@@ -23,6 +23,7 @@ import {
 import { repository } from '@/data/repository';
 import { batchClassifyTransactions } from '@/lib/categorizer';
 import { formatCurrency, formatRelativeDate } from '@/lib/formatters';
+import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 
 interface CsvImportModalProps {
   isOpen: boolean;
@@ -68,6 +69,8 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
     resetState();
     onClose();
   };
+
+  const modalRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose: handleClose });
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -236,7 +239,10 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
         if (e.target === e.currentTarget) handleClose();
       }}
     >
-      <div className="w-full max-w-3xl bg-white dark:bg-dark-surface rounded-modal border border-cream-200 dark:border-dark-border shadow-modal overflow-hidden flex flex-col max-h-[90vh]">
+      <div
+        ref={modalRef}
+        className="w-full max-w-3xl bg-white dark:bg-dark-surface rounded-modal border border-cream-200 dark:border-dark-border shadow-modal overflow-hidden flex flex-col max-h-[90vh]"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-cream-200 dark:border-dark-border">
           <div className="flex items-center gap-2">
@@ -252,7 +258,9 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
           </div>
           <button
             onClick={handleClose}
-            className="p-1 rounded-lg text-deep-blue-700 dark:text-cream-300 hover:bg-cream-100 dark:hover:bg-dark-elevated transition-colors"
+            aria-label="Close dialog"
+            title="Close dialog"
+            className="p-1 rounded-lg text-deep-blue-700 dark:text-cream-300 hover:bg-cream-100 dark:hover:bg-dark-elevated transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
           >
             <X className="w-5 h-5" />
           </button>

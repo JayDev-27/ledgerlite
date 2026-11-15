@@ -34,7 +34,32 @@ export const CategoryDonutChart: React.FC<CategoryDonutChartProps> = ({
   }
 
   return (
-    <div className="flex flex-col md:flex-row items-center gap-6 h-80">
+    <div
+      role="region"
+      aria-label="Category spending breakdown donut chart and summary table"
+      className="flex flex-col md:flex-row items-center gap-6 h-80"
+    >
+      {/* Screen-reader accessible data table */}
+      <table className="sr-only">
+        <caption>Category spending breakdown</caption>
+        <thead>
+          <tr>
+            <th scope="col">Category</th>
+            <th scope="col">Amount</th>
+            <th scope="col">Percentage</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((item) => (
+            <tr key={item.id}>
+              <td>{item.name}</td>
+              <td>{formatCurrency(item.amount)}</td>
+              <td>{item.percent.toFixed(1)}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
       {/* Donut with Center Text */}
       <div className="relative w-full md:w-1/2 h-64 flex items-center justify-center">
         <ResponsiveContainer width="100%" height="100%">

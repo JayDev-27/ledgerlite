@@ -565,7 +565,9 @@ All calculations are deterministic and verified against your local records. How 
               <button
                 type="submit"
                 disabled={!inputMessage.trim() || isLoading}
-                className="p-2.5 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 disabled:opacity-40 text-cream-100 transition-colors shadow-sm"
+                aria-label="Send message to assistant"
+                title="Send message"
+                className="p-2.5 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 disabled:opacity-40 text-cream-100 transition-colors shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
               >
                 <Send className="w-4 h-4" />
               </button>

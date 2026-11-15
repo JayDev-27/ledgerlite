@@ -5,8 +5,10 @@ import {
   ChevronRight,
   GitCompare,
   SlidersHorizontal,
+  X,
 } from 'lucide-react';
 import { PeriodType, PeriodRange } from '@/lib/periods';
+import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 
 interface DashboardPeriodToolbarProps {
   currentPeriod: PeriodRange;
@@ -42,6 +44,11 @@ export const DashboardPeriodToolbar: React.FC<DashboardPeriodToolbarProps> = ({
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customStart, setCustomStart] = useState(currentPeriod.startDate);
   const [customEnd, setCustomEnd] = useState(currentPeriod.endDate);
+
+  const customModalRef = useFocusTrap<HTMLDivElement>({
+    isOpen: showCustomModal,
+    onClose: () => setShowCustomModal(false),
+  });
 
   const handleCustomApply = (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,18 +136,32 @@ export const DashboardPeriodToolbar: React.FC<DashboardPeriodToolbarProps> = ({
 
       {/* Custom Date Range Modal */}
       {showCustomModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-dark-surface rounded-3xl border border-cream-200 dark:border-dark-border w-full max-w-sm p-6 shadow-2xl space-y-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="custom-range-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowCustomModal(false);
+          }}
+        >
+          <div
+            ref={customModalRef}
+            className="bg-white dark:bg-dark-surface rounded-3xl border border-cream-200 dark:border-dark-border w-full max-w-sm p-6 shadow-2xl space-y-4"
+          >
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-deep-blue-900 dark:text-cream-100 flex items-center gap-2">
+              <h3 id="custom-range-title" className="text-sm font-bold text-deep-blue-900 dark:text-cream-100 flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4 text-deep-blue-500 dark:text-cream-200" />
                 Select Custom Date Range
               </h3>
               <button
+                type="button"
                 onClick={() => setShowCustomModal(false)}
-                className="text-xs text-deep-blue-600 dark:text-cream-300 hover:text-deep-blue-900"
+                aria-label="Close dialog"
+                title="Close dialog"
+                className="p-1 rounded-lg text-deep-blue-600 dark:text-cream-300 hover:text-deep-blue-900 hover:bg-cream-100 dark:hover:bg-dark-elevated transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -175,13 +196,13 @@ export const DashboardPeriodToolbar: React.FC<DashboardPeriodToolbarProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowCustomModal(false)}
-                  className="px-3 py-1.5 rounded-xl text-xs font-semibold text-deep-blue-700 dark:text-cream-200 hover:bg-cream-100"
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold text-deep-blue-700 dark:text-cream-200 hover:bg-cream-100 dark:hover:bg-dark-elevated transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-xl text-xs font-bold bg-deep-blue-500 text-white hover:bg-deep-blue-600 shadow-sm"
+                  className="px-4 py-1.5 rounded-xl text-xs font-bold bg-deep-blue-500 text-white hover:bg-deep-blue-600 shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
                 >
                   Apply Range
                 </button>

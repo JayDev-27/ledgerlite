@@ -31,7 +31,32 @@ export const SpendTrendChart: React.FC<SpendTrendChartProps> = ({ data }) => {
   }
 
   return (
-    <div className="h-80 w-full">
+    <div
+      role="region"
+      aria-label="Daily spending trend area chart and summary table"
+      className="h-80 w-full"
+    >
+      {/* Screen-reader accessible data table */}
+      <table className="sr-only">
+        <caption>Daily spending trend summary</caption>
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Amount</th>
+            <th scope="col">Transactions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((point, idx) => (
+            <tr key={idx}>
+              <td>{point.label || point.date}</td>
+              <td>{formatCurrency(point.amount)}</td>
+              <td>{point.txCount}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
           data={data}

@@ -3,6 +3,7 @@ import { Sparkles, X, Check, RefreshCw } from 'lucide-react';
 import { BudgetSuggestionResult } from '@/lib/budget';
 import { formatCurrency } from '@/lib/formatters';
 import { CategoryTypeBadge } from '@/components/common/Badge';
+import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 
 interface SuggestBudgetModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export const SuggestBudgetModal: React.FC<SuggestBudgetModalProps> = ({
 }) => {
   const [editedLimits, setEditedLimits] = useState<Record<string, number>>({});
   const [isApplying, setIsApplying] = useState(false);
+  const modalRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose });
 
   // Sync editedLimits with suggestion whenever suggestion changes
   React.useEffect(() => {
@@ -55,8 +57,19 @@ export const SuggestBudgetModal: React.FC<SuggestBudgetModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white dark:bg-dark-surface rounded-3xl border border-cream-200 dark:border-dark-border w-full max-w-2xl shadow-2xl overflow-hidden my-8">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="suggest-budget-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-deep-blue-950/60 backdrop-blur-sm overflow-y-auto animate-fadeIn"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={modalRef}
+        className="bg-white dark:bg-dark-surface rounded-3xl border border-cream-200 dark:border-dark-border w-full max-w-2xl shadow-2xl overflow-hidden my-8"
+      >
         {/* Header */}
         <div className="p-6 border-b border-cream-100 dark:border-dark-border flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -64,7 +77,7 @@ export const SuggestBudgetModal: React.FC<SuggestBudgetModalProps> = ({
               <Sparkles className="w-5 h-5 text-deep-blue-500 dark:text-cream-100" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-deep-blue-900 dark:text-cream-100">
+              <h2 id="suggest-budget-title" className="text-lg font-bold text-deep-blue-900 dark:text-cream-100">
                 AI Budget Recommendation
               </h2>
               <p className="text-xs text-deep-blue-600 dark:text-cream-300">
@@ -76,7 +89,9 @@ export const SuggestBudgetModal: React.FC<SuggestBudgetModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-deep-blue-600 dark:text-cream-300 hover:bg-cream-100 dark:hover:bg-dark-elevated transition-colors"
+            aria-label="Close dialog"
+            title="Close dialog"
+            className="p-2 rounded-xl text-deep-blue-600 dark:text-cream-300 hover:bg-cream-100 dark:hover:bg-dark-elevated transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
           >
             <X className="w-5 h-5" />
           </button>

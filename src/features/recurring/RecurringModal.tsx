@@ -14,6 +14,7 @@ import type { Category, PaymentMethod, RecurringCadence, RecurringExpense } from
 import { repository } from '@/data/repository';
 import { generateDueRecurringTransactions } from './recurringService';
 import { formatCurrency } from '@/lib/formatters';
+import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 
 interface RecurringModalProps {
   isOpen: boolean;
@@ -41,6 +42,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
   const [categoryId, setCategoryId] = useState('cat_housing');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('upi');
   const [notes, setNotes] = useState('');
+  const modalRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose });
 
   const loadData = async () => {
     const list = await repository.getRecurring();
@@ -128,7 +130,10 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-2xl bg-white dark:bg-dark-surface rounded-modal border border-cream-200 dark:border-dark-border shadow-modal overflow-hidden flex flex-col max-h-[85vh]">
+      <div
+        ref={modalRef}
+        className="w-full max-w-2xl bg-white dark:bg-dark-surface rounded-modal border border-cream-200 dark:border-dark-border shadow-modal overflow-hidden flex flex-col max-h-[85vh]"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-cream-200 dark:border-dark-border">
           <div className="flex items-center gap-2">
@@ -144,7 +149,9 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-deep-blue-700 dark:text-cream-300 hover:bg-cream-100 dark:hover:bg-dark-elevated transition-colors"
+            aria-label="Close dialog"
+            title="Close dialog"
+            className="p-1 rounded-lg text-deep-blue-700 dark:text-cream-300 hover:bg-cream-100 dark:hover:bg-dark-elevated transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
           >
             <X className="w-5 h-5" />
           </button>

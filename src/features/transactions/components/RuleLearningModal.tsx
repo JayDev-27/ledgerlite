@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sparkles, Check } from 'lucide-react';
+import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 
 interface RuleLearningModalProps {
   isOpen: boolean;
@@ -18,6 +19,8 @@ export const RuleLearningModal: React.FC<RuleLearningModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  const modalRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose: onCancel });
+
   if (!isOpen) return null;
 
   return (
@@ -26,8 +29,14 @@ export const RuleLearningModal: React.FC<RuleLearningModalProps> = ({
       aria-modal="true"
       aria-labelledby="rule-learn-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-deep-blue-950/60 backdrop-blur-sm animate-fadeIn"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onCancel();
+      }}
     >
-      <div className="w-full max-w-md bg-white dark:bg-dark-surface rounded-modal border border-cream-200 dark:border-dark-border shadow-modal p-6 space-y-4">
+      <div
+        ref={modalRef}
+        className="w-full max-w-md bg-white dark:bg-dark-surface rounded-modal border border-cream-200 dark:border-dark-border shadow-modal p-6 space-y-4"
+      >
         <div className="flex items-center gap-2.5 text-deep-blue-900 dark:text-cream-100">
           <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-950/50 text-deep-blue-600 dark:text-cream-200">
             <Sparkles className="w-5 h-5" />

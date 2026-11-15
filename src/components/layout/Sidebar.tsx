@@ -73,7 +73,8 @@ export const Sidebar: React.FC = () => {
           <button
             onClick={toggleSidebar}
             title="Collapse Sidebar"
-            className="p-1.5 rounded-lg text-deep-blue-700 hover:text-deep-blue-950 dark:text-cream-300 hover:bg-cream-200/60 dark:hover:bg-dark-elevated transition-colors"
+            aria-label="Collapse Sidebar"
+            className="p-1.5 rounded-lg text-deep-blue-700 hover:text-deep-blue-950 dark:text-cream-300 hover:bg-cream-200/60 dark:hover:bg-dark-elevated transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -84,8 +85,9 @@ export const Sidebar: React.FC = () => {
       <div className="p-3">
         <button
           onClick={openQuickAdd}
+          aria-label="Log Expense (shortcut N)"
           className={clsx(
-            'w-full flex items-center justify-center gap-2 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 py-2.5 font-medium shadow-sm transition-all text-sm group',
+            'w-full flex items-center justify-center gap-2 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 py-2.5 font-medium shadow-sm transition-all text-sm group focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500 focus-visible:ring-offset-2',
             isSidebarCollapsed ? 'px-0' : 'px-4'
           )}
           title="Quick Add Expense (Press N)"
@@ -175,7 +177,8 @@ export const Sidebar: React.FC = () => {
           <button
             onClick={toggleSidebar}
             title="Expand Sidebar"
-            className="w-full flex justify-center p-2 rounded-xl text-deep-blue-700 hover:text-deep-blue-950 dark:text-cream-300 hover:bg-cream-200/60 dark:hover:bg-dark-elevated transition-colors"
+            aria-label="Expand Sidebar"
+            className="w-full flex justify-center p-2 rounded-xl text-deep-blue-700 hover:text-deep-blue-950 dark:text-cream-300 hover:bg-cream-200/60 dark:hover:bg-dark-elevated transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
