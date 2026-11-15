@@ -6,6 +6,7 @@ import Lenis from 'lenis';
 import { ArrowRight, ArrowDown, Plus, CornerDownLeft, Repeat, FileSpreadsheet, ShieldCheck, Gauge } from 'lucide-react';
 import { HeroCanvas, type HeroCanvasHandle } from './components/HeroCanvas';
 import { ProductPreview } from './components/ProductPreview';
+import { WaterGlowBackground } from './components/WaterGlowBackground';
 import { BrandMark } from '@/components/brand/BrandMark';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { CLOUD_MODE } from '@/lib/auth/firebase';
@@ -710,13 +711,10 @@ export const LandingPage: React.FC = () => {
 
         {/* ── Final CTA ───────────────────────────────────────────────────── */}
         <section aria-labelledby="cta-title" className="relative overflow-hidden px-5 md:px-8 pt-24 pb-32 md:pt-32 md:pb-44 text-center">
-          {/* Ambient light pooled on the page itself — no container */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 pointer-events-none bg-[radial-gradient(45%_55%_at_50%_60%,rgba(132,125,255,0.20),transparent_70%),radial-gradient(30%_35%_at_62%_72%,rgba(159,232,112,0.10),transparent_70%)]"
-          />
-          <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-          <div className="relative">
+          {/* Interactive water ripple & glowing aura background */}
+          <WaterGlowBackground />
+          <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent pointer-events-none" />
+          <div className="relative pointer-events-none">
             <p className="reveal label-mono text-white/40 mb-8">Begin</p>
             <h2
               id="cta-title"
@@ -724,7 +722,7 @@ export const LandingPage: React.FC = () => {
             >
               Quiet wealth starts with a <em className="text-white">calm</em> ledger.
             </h2>
-            <div className="mt-12 flex justify-center">
+            <div className="mt-12 flex justify-center pointer-events-auto">
               <Link
                 ref={ctaRef}
                 to={primaryHref}
