@@ -132,7 +132,7 @@ export const AssistantPage: React.FC = () => {
   const [proposalStatuses, setProposalStatuses] = useState<Record<string, 'pending' | 'approved' | 'rejected'>>({});
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const streamIntervalRef = useRef<number | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatEndRef = useRef<HTMLLIElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -151,6 +151,19 @@ export const AssistantPage: React.FC = () => {
     }
   };
 
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior, block: 'end' });
+    }
+    const maxScroll = Math.max(
+      document.documentElement.scrollHeight,
+      document.body.scrollHeight
+    );
+    if (behavior === 'auto') {
+      window.scrollTo({ top: maxScroll, behavior: 'auto' });
+    }
+  };
+
   useEffect(() => {
     requestQueue.updateBudgets(settings.dailyAiBudgetHeavy ?? 20, settings.dailyAiBudgetLight ?? 200);
     requestQueue.setConfiguredModels(settings.geminiHeavyModel, settings.geminiLightModel);
@@ -158,8 +171,13 @@ export const AssistantPage: React.FC = () => {
   }, [settings.dailyAiBudgetHeavy, settings.dailyAiBudgetLight, settings.geminiHeavyModel, settings.geminiLightModel]);
 
   useEffect(() => {
-    if (messages.length) chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages, isLoading]);
+    if (!streamingMessageId && messages.length) {
+      const timer = setTimeout(() => {
+        scrollToBottom('smooth');
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [messages.length, isLoading, streamingMessageId]);
 
   // Auto-grow composer
   useEffect(() => {
@@ -177,6 +195,7 @@ export const AssistantPage: React.FC = () => {
     setMessages((prev) => [...prev, userMsg]);
     setInputMessage('');
     setIsLoading(true);
+    setTimeout(() => scrollToBottom('smooth'), 50);
 
     try {
       const apiKey = (await secretsAdapter.getApiKey()) || settings.geminiApiKey || '';
@@ -246,37 +265,43 @@ export const AssistantPage: React.FC = () => {
       ]);
       setStreamingMessageId(assistantId);
 
-      // Stream text chunk by chunk like ChatGPT
+      // Stream text word-by-word like ChatGPT
+      const tokens = fullText.match(/\S+\s*|\n+/g) || [fullText];
+      let currentIdx = 0;
+      const totalTokens = tokens.length;
+      // Snappy yet distinctly visible typing cadence matching ChatGPT:
+      // ~25-34ms per token; emits 2 tokens per tick only if the response is quite long.
+      const tokensPerStep = totalTokens > 140 ? 2 : 1;
+      const intervalMs = totalTokens > 80 ? 25 : 34;
+
+      if (streamIntervalRef.current) {
+        window.clearInterval(streamIntervalRef.current);
+      }
+
+      scrollToBottom('auto');
+
       await new Promise<void>((resolve) => {
-        let currentIndex = 0;
-        const totalLen = fullText.length;
-        // Adaptive step size: snappy pace that feels lively and smooth
-        const stepSize = Math.max(2, Math.min(10, Math.ceil(totalLen / 60)));
-        const intervalTime = 16;
-
-        if (streamIntervalRef.current) {
-          window.clearInterval(streamIntervalRef.current);
-        }
-
         streamIntervalRef.current = window.setInterval(() => {
-          currentIndex = Math.min(totalLen, currentIndex + stepSize);
-          const currentSlice = fullText.slice(0, currentIndex);
+          currentIdx = Math.min(totalTokens, currentIdx + tokensPerStep);
+          const currentSlice = tokens.slice(0, currentIdx).join('');
 
           setMessages((prev) =>
             prev.map((m) => (m.id === assistantId ? { ...m, text: currentSlice } : m))
           );
 
-          chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+          scrollToBottom('auto');
 
-          if (currentIndex >= totalLen) {
+          if (currentIdx >= totalTokens) {
             if (streamIntervalRef.current) {
               window.clearInterval(streamIntervalRef.current);
               streamIntervalRef.current = null;
             }
             setStreamingMessageId(null);
+            setTimeout(() => scrollToBottom('smooth'), 40);
+            setTimeout(() => scrollToBottom('smooth'), 180);
             resolve();
           }
-        }, intervalTime);
+        }, intervalMs);
       });
 
       await loadUsage();
@@ -512,7 +537,7 @@ export const AssistantPage: React.FC = () => {
                     </div>
                   </li>
                 )}
-                <div ref={chatEndRef} />
+                <li ref={chatEndRef} className="h-28 md:h-20 w-full shrink-0 scroll-mb-28 md:scroll-mb-20 list-none pointer-events-none" aria-hidden="true" />
               </ol>
             )}
           </div>
