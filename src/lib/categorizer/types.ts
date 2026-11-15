@@ -11,6 +11,7 @@ export interface CategorizeOptions {
   useAi?: boolean;
   apiKey?: string;
   model?: string;
+  privacyMode?: boolean;
 }
 
 export interface DictionaryEntry {

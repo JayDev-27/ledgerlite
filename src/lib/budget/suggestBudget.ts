@@ -7,6 +7,7 @@ import {
 } from './types';
 import { secretsAdapter } from '@/lib/secrets';
 import { parseReferenceDate } from '@/lib/periods/financialYear';
+import { requestQueue } from '@/lib/gemini/requestQueue';
 
 export interface CategoryHistorySummary {
   categoryId: string;
@@ -189,112 +190,123 @@ export async function suggestBudget(
     return generateDeterministicBudget(aggregation);
   }
 
-  try {
-    const ai = new GoogleGenAI({ apiKey: key.trim() });
-    const payload = aggregation.categorySummaries.map((c) => ({
-      categoryId: c.categoryId,
-      categoryName: c.categoryName,
-      type: c.categoryType,
-      threeMonthAverage: c.averageSpend,
-    }));
+  const cacheKey = `budget:${targetMonth}`;
 
-    const response = await ai.models.generateContent({
+  try {
+    return await requestQueue.enqueue<BudgetSuggestionResult>({
+      tier: 'heavy',
       model,
-      contents: `Propose monthly category budget limits for ${targetMonth} based on this 3-month history:\n${JSON.stringify(payload, null, 2)}`,
-      config: {
-        systemInstruction: `You are an expert personal financial advisor specializing in Indian household budgeting.
+      fallbackModel: 'gemini-3.5-flash-lite',
+      cacheKey,
+      execute: async (effectiveModel) => {
+        const ai = new GoogleGenAI({ apiKey: key.trim() });
+        const payload = aggregation.categorySummaries.map((c) => ({
+          categoryId: c.categoryId,
+          categoryName: c.categoryName,
+          type: c.categoryType,
+          threeMonthAverage: c.averageSpend,
+        }));
+
+        const response = await ai.models.generateContent({
+          model: effectiveModel,
+          contents: `Propose monthly category budget limits for ${targetMonth} based on this 3-month history:\n${JSON.stringify(payload, null, 2)}`,
+          config: {
+            systemInstruction: `You are an expert personal financial advisor specializing in Indian household budgeting.
 Analyze the user's 3-month category spending history and propose pragmatic monthly limits for ${targetMonth} using the 50/30/20 rule (50% Needs, 30% Wants, 20% Savings/Investments).
 Round every limit to a clean, practical number (nearest ₹500 or ₹1,000 in Indian Rupees).
 Provide a concise, encouraging rationale for each category and an overall budget summary.`,
-        responseMimeType: 'application/json',
-        responseJsonSchema: {
-          type: Type.OBJECT,
-          properties: {
-            totalLimit: { type: Type.NUMBER, description: 'Sum of all category limits' },
-            rationale: { type: Type.STRING, description: 'Executive summary explanation of the proposed budget' },
-            items: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  categoryId: { type: Type.STRING },
-                  proposedLimit: { type: Type.NUMBER },
-                  reason: { type: Type.STRING },
+            responseMimeType: 'application/json',
+            responseJsonSchema: {
+              type: Type.OBJECT,
+              properties: {
+                totalLimit: { type: Type.NUMBER, description: 'Sum of all category limits' },
+                rationale: { type: Type.STRING, description: 'Executive summary explanation of the proposed budget' },
+                items: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      categoryId: { type: Type.STRING },
+                      proposedLimit: { type: Type.NUMBER },
+                      reason: { type: Type.STRING },
+                    },
+                    required: ['categoryId', 'proposedLimit', 'reason'],
+                  },
                 },
-                required: ['categoryId', 'proposedLimit', 'reason'],
               },
+              required: ['totalLimit', 'items', 'rationale'],
             },
           },
-          required: ['totalLimit', 'items', 'rationale'],
-        },
+        });
+
+        const parsedText = response.text?.trim();
+        if (!parsedText) {
+          return generateDeterministicBudget(aggregation);
+        }
+
+        const json = JSON.parse(parsedText) as {
+          totalLimit: number;
+          rationale: string;
+          items: Array<{ categoryId: string; proposedLimit: number; reason: string }>;
+        };
+
+        if (!Array.isArray(json.items) || json.items.length === 0) {
+          return generateDeterministicBudget(aggregation);
+        }
+
+        const categoryLimits: Record<string, number> = {};
+        const items: BudgetSuggestionItem[] = [];
+        let calculatedTotal = 0;
+        let needTotal = 0;
+        let wantTotal = 0;
+        let savingsTotal = 0;
+
+        for (const cat of aggregation.categorySummaries) {
+          const match = json.items.find((it) => it.categoryId === cat.categoryId);
+          const proposed =
+            match && typeof match.proposedLimit === 'number' && match.proposedLimit > 0
+              ? Math.round(match.proposedLimit)
+              : cat.averageSpend > 0
+              ? cat.averageSpend
+              : 2000;
+          const reason = match?.reason || `Derived from ₹${cat.averageSpend} average spend`;
+
+          categoryLimits[cat.categoryId] = proposed;
+          calculatedTotal += proposed;
+
+          if (cat.categoryType === 'need') needTotal += proposed;
+          else if (cat.categoryType === 'want') wantTotal += proposed;
+          else savingsTotal += proposed;
+
+          items.push({
+            categoryId: cat.categoryId,
+            categoryName: cat.categoryName,
+            categoryType: cat.categoryType,
+            threeMonthAverage: cat.averageSpend,
+            proposedLimit: proposed,
+            reason,
+          });
+        }
+
+        const totalLimit = json.totalLimit > 0 ? json.totalLimit : calculatedTotal;
+        const needPercent = totalLimit > 0 ? Math.round((needTotal / totalLimit) * 100) : 50;
+        const wantPercent = totalLimit > 0 ? Math.round((wantTotal / totalLimit) * 100) : 30;
+        const savingsPercent = totalLimit > 0 ? 100 - needPercent - wantPercent : 20;
+
+        return {
+          month: targetMonth,
+          totalLimit,
+          categoryLimits,
+          items,
+          rationale: json.rationale,
+          needPercent,
+          wantPercent,
+          savingsPercent,
+          isAiGenerated: true,
+        };
       },
+      fallbackDeterministic: () => generateDeterministicBudget(aggregation),
     });
-
-    const parsedText = response.text?.trim();
-    if (!parsedText) {
-      return generateDeterministicBudget(aggregation);
-    }
-
-    const json = JSON.parse(parsedText) as {
-      totalLimit: number;
-      rationale: string;
-      items: Array<{ categoryId: string; proposedLimit: number; reason: string }>;
-    };
-
-    if (!Array.isArray(json.items) || json.items.length === 0) {
-      return generateDeterministicBudget(aggregation);
-    }
-
-    const categoryLimits: Record<string, number> = {};
-    const items: BudgetSuggestionItem[] = [];
-    let calculatedTotal = 0;
-    let needTotal = 0;
-    let wantTotal = 0;
-    let savingsTotal = 0;
-
-    for (const cat of aggregation.categorySummaries) {
-      const match = json.items.find((it) => it.categoryId === cat.categoryId);
-      const proposed =
-        match && typeof match.proposedLimit === 'number' && match.proposedLimit > 0
-          ? Math.round(match.proposedLimit)
-          : cat.averageSpend > 0
-          ? cat.averageSpend
-          : 2000;
-      const reason = match?.reason || `Derived from ₹${cat.averageSpend} average spend`;
-
-      categoryLimits[cat.categoryId] = proposed;
-      calculatedTotal += proposed;
-
-      if (cat.categoryType === 'need') needTotal += proposed;
-      else if (cat.categoryType === 'want') wantTotal += proposed;
-      else savingsTotal += proposed;
-
-      items.push({
-        categoryId: cat.categoryId,
-        categoryName: cat.categoryName,
-        categoryType: cat.categoryType,
-        threeMonthAverage: cat.averageSpend,
-        proposedLimit: proposed,
-        reason,
-      });
-    }
-
-    const totalLimit = json.totalLimit > 0 ? json.totalLimit : calculatedTotal;
-    const needPercent = totalLimit > 0 ? Math.round((needTotal / totalLimit) * 100) : 50;
-    const wantPercent = totalLimit > 0 ? Math.round((wantTotal / totalLimit) * 100) : 30;
-    const savingsPercent = totalLimit > 0 ? 100 - needPercent - wantPercent : 20;
-
-    return {
-      month: targetMonth,
-      totalLimit,
-      categoryLimits,
-      items,
-      rationale: json.rationale,
-      needPercent,
-      wantPercent,
-      savingsPercent,
-      isAiGenerated: true,
-    };
   } catch (err) {
     console.warn('Gemini budget suggestion failed, falling back to heuristic:', err);
     return generateDeterministicBudget(aggregation);

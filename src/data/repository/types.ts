@@ -85,6 +85,7 @@ export interface Repository {
   // Memory
   getMemoryItems(approvedOnly?: boolean): Promise<MemoryItem[]>;
   createMemoryItem(item: Omit<MemoryItem, 'id' | 'createdAt'> & { id?: string }): Promise<MemoryItem>;
+  updateMemoryItem(id: string, updates: Partial<MemoryItem>): Promise<MemoryItem>;
   approveMemoryItem(id: string): Promise<void>;
   deleteMemoryItem(id: string): Promise<void>;
 

@@ -2,6 +2,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { formatCurrency } from '@/lib/formatters';
 import { PeriodPack, ReportContent } from './types';
 import { generateTemplateReport } from './templateGenerator';
+import { requestQueue } from '@/lib/gemini/requestQueue';
 
 export interface GeminiReportOptions {
   apiKey?: string;
@@ -171,22 +172,23 @@ Format response strictly adhering to the JSON schema:
     };
   };
 
-  try {
-    // Attempt with heavy model (gemini-3.8-flash)
-    const result = await callModel(primaryModel);
-    if (result) return result;
-  } catch (err) {
-    console.warn(`Primary Gemini report model (${primaryModel}) failed:`, err);
-  }
+  const cacheKey = `report:${pack.periodRange.type}:${pack.periodRange.startDate}:${pack.periodRange.endDate}`;
 
   try {
-    // Fallback attempt with lighter model (gemini-3.5-flash-lite)
-    const fallbackResult = await callModel(fallbackModel);
-    if (fallbackResult) return fallbackResult;
+    return await requestQueue.enqueue<ReportContent>({
+      tier: 'heavy',
+      model: primaryModel,
+      fallbackModel,
+      cacheKey,
+      execute: async (effectiveModel) => {
+        const result = await callModel(effectiveModel);
+        if (result) return result;
+        throw new Error(`Failed to generate report with model ${effectiveModel}`);
+      },
+      fallbackDeterministic: () => generateTemplateReport(pack),
+    });
   } catch (err) {
-    console.warn(`Fallback Gemini report model (${fallbackModel}) failed:`, err);
+    console.warn('Gemini report generation failed, using template generator:', err);
+    return generateTemplateReport(pack);
   }
-
-  // Graceful deterministic fallback: offline template generator
-  return generateTemplateReport(pack);
 }

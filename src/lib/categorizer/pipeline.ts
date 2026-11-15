@@ -66,7 +66,8 @@ export async function classifyTransaction(
         const aiResult = await classifySingleWithGemini(
           input,
           key,
-          options.model || 'gemini-3.5-flash-lite'
+          options.model || 'gemini-3.5-flash-lite',
+          options.privacyMode ?? true
         );
         return {
           categoryId: aiResult.categoryId,
@@ -169,7 +170,8 @@ export async function batchClassifyTransactions(
         const aiResults = await batchClassifyWithGemini(
           pendingAiInputs,
           key,
-          options?.model || 'gemini-3.5-flash-lite'
+          options?.model || 'gemini-3.5-flash-lite',
+          options?.privacyMode ?? true
         );
         for (let j = 0; j < aiResults.length; j++) {
           const originalIdx = pendingAiIndices[j];

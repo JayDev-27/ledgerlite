@@ -145,7 +145,9 @@ export interface AppSettings {
   geminiApiKey?: string;
   geminiHeavyModel: string;
   geminiLightModel: string;
-  dailyAiBudget: number; // Daily request limit
+  dailyAiBudget: number; // Daily request limit (combined/legacy)
+  dailyAiBudgetHeavy?: number; // Heavy model daily limit (e.g. 20)
+  dailyAiBudgetLight?: number; // Light model daily limit (e.g. 200)
   storagePersisted: boolean;
   hasCompletedSeed: boolean;
   lastBackupDate?: string;

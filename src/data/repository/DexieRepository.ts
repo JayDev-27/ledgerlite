@@ -582,6 +582,23 @@ export class DexieRepository implements Repository {
     return newItem;
   }
 
+  async updateMemoryItem(
+    id: string,
+    updates: Partial<MemoryItem>
+  ): Promise<MemoryItem> {
+    const existing = await this.db.memory.get(id);
+    if (!existing) {
+      throw new Error(`Memory item with id ${id} not found`);
+    }
+    const updated: MemoryItem = {
+      ...existing,
+      ...updates,
+      id,
+    };
+    await this.db.memory.put(updated);
+    return updated;
+  }
+
   async approveMemoryItem(id: string): Promise<void> {
     await this.db.memory.update(id, { approvedAt: new Date().toISOString() });
   }
