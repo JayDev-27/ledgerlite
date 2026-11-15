@@ -22,14 +22,14 @@ export const PwaInstallBanner: React.FC = () => {
     <div
       role="banner"
       aria-label="Install Application Prompt"
-      className="print:hidden mx-4 sm:mx-6 mt-3 p-3.5 rounded-xl bg-deep-blue-500 text-cream-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-modal animate-fadeIn"
+      className="print:hidden mx-4 sm:mx-6 mt-3 p-3.5 rounded-xl bg-deep-blue-500 text-cream-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-modal animate-fadeIn dark:bg-white dark:text-black dark:hover:bg-cream-200"
     >
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-deep-blue-600 border border-sky-400/30 flex items-center justify-center flex-shrink-0 text-cream-100">
           <Smartphone className="w-5 h-5 text-cream-200" />
         </div>
         <div>
-          <div className="text-sm font-bold tracking-tight text-white flex items-center gap-2">
+          <div className="text-sm font-semibold tracking-tight text-white flex items-center gap-2">
             <span>Install {APP_NAME}</span>
             <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-deep-blue-700 text-cream-200">
               PWA
@@ -46,7 +46,7 @@ export const PwaInstallBanner: React.FC = () => {
           onClick={handleInstall}
           disabled={isInstalling}
           aria-label={`Install ${APP_NAME} application`}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-cream-100 hover:bg-white text-deep-blue-900 font-bold text-xs shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-200 focus-visible:ring-offset-2"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-cream-100 hover:bg-white text-deep-blue-900 font-semibold text-xs shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-200 focus-visible:ring-offset-2"
         >
           <Download className="w-3.5 h-3.5 text-deep-blue-700" />
           <span>{isInstalling ? 'Installing...' : 'Install App'}</span>

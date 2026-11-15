@@ -139,7 +139,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
           <div className="flex items-center gap-2">
             <Repeat className="w-5 h-5 text-deep-blue-600 dark:text-cream-300" />
             <div>
-              <h3 id="recurring-modal-title" className="font-bold text-base text-deep-blue-950 dark:text-cream-100">
+              <h3 id="recurring-modal-title" className="font-semibold text-base text-deep-blue-950 dark:text-cream-100">
                 Recurring Expense Templates
               </h3>
               <p className="text-xs text-deep-blue-700/70 dark:text-cream-400">
@@ -172,7 +172,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
 
           <button
             onClick={() => setIsAdding(!isAdding)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-bold transition-all shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold transition-all shadow-sm dark:bg-white dark:text-black dark:hover:bg-cream-200"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Template</span>
@@ -195,7 +195,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
               className="p-4 rounded-xl bg-cream-50 dark:bg-dark-elevated border border-cream-200 dark:border-dark-border space-y-3 animate-fadeIn text-xs"
             >
               <div className="flex items-center justify-between">
-                <span className="font-bold text-deep-blue-900 dark:text-cream-100">
+                <span className="font-semibold text-deep-blue-900 dark:text-cream-100">
                   New Recurring Template:
                 </span>
                 <button
@@ -312,7 +312,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="flex items-center gap-1 px-4 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-white font-bold"
+                  className="flex items-center gap-1 px-4 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-white font-semibold dark:bg-white dark:text-black dark:hover:bg-cream-200"
                 >
                   <Check className="w-3.5 h-3.5" />
                   <span>Save Template</span>
@@ -338,7 +338,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-deep-blue-900 dark:text-cream-100 truncate">
+                        <span className="font-semibold text-sm text-deep-blue-900 dark:text-cream-100 truncate">
                           {item.template.merchant}
                         </span>
                         <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-sky-100 dark:bg-dark-border text-deep-blue-700 dark:text-cream-300">
@@ -364,7 +364,7 @@ export const RecurringModal: React.FC<RecurringModalProps> = ({
                     </div>
 
                     <div className="flex items-center gap-3 flex-shrink-0">
-                      <div className="font-bold tabular-nums text-sm text-deep-blue-950 dark:text-cream-100">
+                      <div className="font-semibold tabular-nums text-sm text-deep-blue-950 dark:text-cream-100">
                         {formatCurrency(item.template.amount)}
                       </div>
 

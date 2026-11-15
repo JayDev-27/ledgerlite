@@ -5,46 +5,66 @@ export default {
   theme: {
     extend: {
       colors: {
+        // ── Midnight Gallery design system ──────────────────────────────
+        // Token names are kept for backwards compatibility with every
+        // component; values now express the new system.
+        // cream  → light neutrals (light canvas, dark-mode text)
         cream: {
-          50: '#FAF6EE',
-          100: '#F5EEDD', // Primary app background in light mode
-          200: '#EAE1CE',
-          300: '#DFD1B8',
-          400: '#C7B493',
-          500: '#B09A72',
+          50: '#FBFBF9',
+          100: '#F4F4F1',
+          200: '#E6E8E3',
+          300: '#D3D6D0',
+          400: '#AEB2AB',
+          500: '#8A8E87',
         },
+        // sky → Lime Voltage signal (highlights, dark-mode accents)
         sky: {
-          50: '#F1F7FA',
-          100: '#DEEDF4',
-          200: '#BEDBEB',
-          300: '#9FC7DE',
-          400: '#84B3CE', // Secondary highlight / chart / borders
-          500: '#5C98BC',
-          600: '#437A9A',
-          700: '#325C76',
+          50: '#F4FCEE',
+          100: '#E4F7D6',
+          200: '#CDF1B3',
+          300: '#B6EC91',
+          400: '#9FE870',
+          500: '#84D14F',
+          600: '#4F8A27',
+          700: '#3A681B',
         },
+        // deep-blue → Iris primary (actions, active nav, key numbers)
         'deep-blue': {
-          50: '#E8F2F7',
-          100: '#C7DEEC',
-          200: '#94BFD9',
-          300: '#5A9DC2',
-          400: '#2E7FA9',
-          500: '#16587B', // Primary action, headings, key numbers, active nav
-          600: '#124764',
-          700: '#0E374E',
-          800: '#0A2737',
-          900: '#061924',
-          950: '#030D13',
+          50: '#F0EFFF',
+          100: '#E0DEFF',
+          200: '#C4C0FF',
+          300: '#A49EFF',
+          400: '#847DFF',
+          500: '#5B54E8',
+          600: '#4A44C9',
+          700: '#3A35A3',
+          800: '#26236E',
+          900: '#15143D',
+          950: '#0B0A20',
         },
-        // Dark theme tokens derived from deep blue and cream
+        // dark → Obsidian surfaces, stepped by tone not shadow
         dark: {
-          bg: '#081722',
-          surface: '#0F2536',
-          elevated: '#17344B',
-          border: '#1F4766',
-          muted: '#27577E',
+          bg: '#0B0C0D',
+          surface: '#111213',
+          elevated: '#17181A',
+          border: '#1F2023',
+          muted: '#2E2F33',
         },
-        // Harmonious semantic colors
+        // Chromatic gallery tiles (landing + feature cards)
+        gallery: {
+          iris: '#847DFF',
+          'pale-iris': '#D1C9FF',
+          orchid: '#DD90D8',
+          periwinkle: '#90B8F0',
+          lime: '#9FE870',
+          sun: '#FFD731',
+          ember: '#FB4903',
+          cyan: '#00B3DD',
+          obsidian: '#0F1011',
+          graphite: '#2E2E2E',
+          ash: '#9F9FA0',
+          cloud: '#F5F5F7',
+        },
         status: {
           success: '#1B6B4C',
           'success-bg': '#E6F4ED',
@@ -52,11 +72,13 @@ export default {
           'warning-bg': '#FEF3E2',
           danger: '#B92E2E',
           'danger-bg': '#FDF0F0',
-          info: '#16587B',
-          'info-bg': '#EAF3F8',
+          info: '#5B54E8',
+          'info-bg': '#F0EFFF',
         },
       },
       fontFamily: {
+        display: ['"Instrument Serif"', 'ui-serif', 'Georgia', 'serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
         sans: [
           'Inter',
           '-apple-system',
@@ -68,15 +90,25 @@ export default {
         ],
       },
       borderRadius: {
-        card: '14px',
-        modal: '18px',
+        card: '18px',
+        modal: '24px',
+        tile: '30px',
       },
       boxShadow: {
-        subtle: '0 1px 3px 0 rgba(22, 88, 123, 0.05), 0 1px 2px -1px rgba(22, 88, 123, 0.05)',
-        card: '0 4px 6px -1px rgba(22, 88, 123, 0.07), 0 2px 4px -2px rgba(22, 88, 123, 0.05)',
-        'card-hover': '0 10px 15px -3px rgba(22, 88, 123, 0.1), 0 4px 6px -4px rgba(22, 88, 123, 0.06)',
+        subtle: '0 1px 3px 0 rgba(15, 16, 17, 0.05), 0 1px 2px -1px rgba(15, 16, 17, 0.05)',
+        card: '0 4px 6px -1px rgba(15, 16, 17, 0.07), 0 2px 4px -2px rgba(15, 16, 17, 0.05)',
+        'card-hover': '0 10px 15px -3px rgba(15, 16, 17, 0.1), 0 4px 6px -4px rgba(15, 16, 17, 0.06)',
         modal: '0 20px 25px -5px rgba(6, 25, 36, 0.25), 0 8px 10px -6px rgba(6, 25, 36, 0.15)',
+        glow: '0 0 0 1px rgba(159, 232, 112, 0.35), 0 8px 40px -8px rgba(159, 232, 112, 0.35)',
         'dark-card': '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2)',
+      },
+      keyframes: {
+        fadeIn: { from: { opacity: '0', transform: 'translateY(6px)' }, to: { opacity: '1', transform: 'none' } },
+        marquee: { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(-50%)' } },
+      },
+      animation: {
+        fadeIn: 'fadeIn 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both',
+        marquee: 'marquee 28s linear infinite',
       },
     },
   },

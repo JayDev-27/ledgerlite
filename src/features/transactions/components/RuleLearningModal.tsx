@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Check } from 'lucide-react';
+import { Lightbulb, Check } from 'lucide-react';
 import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
 
 interface RuleLearningModalProps {
@@ -39,10 +39,10 @@ export const RuleLearningModal: React.FC<RuleLearningModalProps> = ({
       >
         <div className="flex items-center gap-2.5 text-deep-blue-900 dark:text-cream-100">
           <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-950/50 text-deep-blue-600 dark:text-cream-200">
-            <Sparkles className="w-5 h-5" />
+            <Lightbulb className="w-5 h-5" />
           </div>
           <div>
-            <h3 id="rule-learn-title" className="font-bold text-sm">
+            <h3 id="rule-learn-title" className="font-semibold text-sm">
               Teach LedgerLite a Rule
             </h3>
             <p className="text-xs text-deep-blue-700/70 dark:text-cream-400">
@@ -79,7 +79,7 @@ export const RuleLearningModal: React.FC<RuleLearningModalProps> = ({
               </button>
               <button
                 onClick={() => onConfirm(true)}
-                className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-bold transition-all shadow-sm"
+                className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold transition-all shadow-sm dark:bg-white dark:text-black dark:hover:bg-cream-200"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>Learn & Update Past {affectedCount}</span>
@@ -88,7 +88,7 @@ export const RuleLearningModal: React.FC<RuleLearningModalProps> = ({
           ) : (
             <button
               onClick={() => onConfirm(false)}
-              className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-bold transition-all shadow-sm"
+              className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold transition-all shadow-sm dark:bg-white dark:text-black dark:hover:bg-cream-200"
             >
               <Check className="w-3.5 h-3.5" />
               <span>Always Remember</span>

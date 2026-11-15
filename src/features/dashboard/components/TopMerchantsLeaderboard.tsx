@@ -39,10 +39,10 @@ export const TopMerchantsLeaderboard: React.FC<TopMerchantsLeaderboardProps> = (
           >
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="w-5 h-5 rounded-full bg-deep-blue-50 dark:bg-dark-surface text-deep-blue-700 dark:text-cream-100 font-bold text-[10px] flex items-center justify-center flex-shrink-0">
+                <span className="w-5 h-5 rounded-full bg-deep-blue-50 dark:bg-dark-surface text-deep-blue-700 dark:text-cream-100 font-semibold text-[10px] flex items-center justify-center flex-shrink-0">
                   {idx + 1}
                 </span>
-                <span className="font-bold text-deep-blue-900 dark:text-cream-100 truncate">
+                <span className="font-semibold text-deep-blue-900 dark:text-cream-100 truncate">
                   {item.merchant}
                 </span>
                 <span className="text-[10px] text-deep-blue-600 dark:text-cream-300 flex-shrink-0">
@@ -51,7 +51,7 @@ export const TopMerchantsLeaderboard: React.FC<TopMerchantsLeaderboardProps> = (
               </div>
 
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+                <span className="font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
                   {formatCurrency(item.totalAmount, { hideDecimals: true })}
                 </span>
                 <span className="text-[11px] font-semibold text-deep-blue-600 dark:text-cream-300 tabular-nums w-8 text-right">
@@ -63,7 +63,7 @@ export const TopMerchantsLeaderboard: React.FC<TopMerchantsLeaderboardProps> = (
             {/* Horizontal progress bar */}
             <div className="w-full h-1.5 rounded-full bg-cream-200 dark:bg-dark-surface overflow-hidden">
               <div
-                className="h-full rounded-full bg-deep-blue-500 transition-all"
+                className="h-full rounded-full bg-deep-blue-500 transition-all dark:bg-white dark:text-black dark:hover:bg-cream-200"
                 style={{ width: `${barWidth}%` }}
               />
             </div>

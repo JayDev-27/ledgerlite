@@ -103,7 +103,7 @@ export const EditBudgetModal: React.FC<EditBudgetModalProps> = ({
         {/* Header */}
         <div className="p-6 border-b border-cream-100 dark:border-dark-border flex items-center justify-between">
           <div>
-            <h2 id="edit-budget-title" className="text-lg font-bold text-deep-blue-900 dark:text-cream-100">
+            <h2 id="edit-budget-title" className="text-lg font-semibold text-deep-blue-900 dark:text-cream-100">
               Manage Monthly Budget ({month})
             </h2>
             <p className="text-xs text-deep-blue-600 dark:text-cream-300">
@@ -127,7 +127,7 @@ export const EditBudgetModal: React.FC<EditBudgetModalProps> = ({
             <div className="p-4 rounded-2xl bg-cream-50 dark:bg-dark-elevated border border-cream-200 dark:border-dark-border space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-deep-blue-800 dark:text-cream-200">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-deep-blue-800 dark:text-cream-200">
                     Total Monthly Budget Limit
                   </label>
                   <p className="text-[11px] text-deep-blue-600 dark:text-cream-300">
@@ -146,7 +146,7 @@ export const EditBudgetModal: React.FC<EditBudgetModalProps> = ({
                       required
                       value={totalLimit}
                       onChange={(e) => setTotalLimit(parseFloat(e.target.value) || 0)}
-                      className="w-36 pl-7 pr-3 py-2 rounded-xl border border-cream-300 dark:border-dark-border bg-white dark:bg-dark-surface font-bold text-deep-blue-900 dark:text-cream-100 tabular-nums text-sm text-right focus:ring-2 focus:ring-deep-blue-500 focus:outline-none"
+                      className="w-36 pl-7 pr-3 py-2 rounded-xl border border-cream-300 dark:border-dark-border bg-white dark:bg-dark-surface font-semibold text-deep-blue-900 dark:text-cream-100 tabular-nums text-sm text-right focus:ring-2 focus:ring-deep-blue-500 focus:outline-none"
                     />
                   </div>
                   <button
@@ -163,7 +163,7 @@ export const EditBudgetModal: React.FC<EditBudgetModalProps> = ({
               {/* Rollover Toggle */}
               <div className="pt-3 border-t border-cream-200 dark:border-dark-border flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold text-deep-blue-900 dark:text-cream-100">
+                  <span className="text-xs font-semibold text-deep-blue-900 dark:text-cream-100">
                     Unspent Rollover
                   </span>
                   <p className="text-[11px] text-deep-blue-600 dark:text-cream-300">
@@ -185,7 +185,7 @@ export const EditBudgetModal: React.FC<EditBudgetModalProps> = ({
             {/* Category Limits */}
             <div>
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-deep-blue-800 dark:text-cream-200">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-deep-blue-800 dark:text-cream-200">
                   Per-Category Limits
                 </h3>
                 <span className="text-xs text-deep-blue-600 dark:text-cream-300">
@@ -250,7 +250,7 @@ export const EditBudgetModal: React.FC<EditBudgetModalProps> = ({
             <button
               type="submit"
               disabled={isSaving}
-              className="px-5 py-2.5 rounded-xl font-bold text-xs bg-deep-blue-500 hover:bg-deep-blue-600 text-white shadow-md flex items-center gap-2 transition-transform active:scale-95 disabled:opacity-50"
+              className="px-5 py-2.5 rounded-xl font-semibold text-xs bg-deep-blue-500 hover:bg-deep-blue-600 text-white shadow-md flex items-center gap-2 transition-transform active:scale-95 disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-cream-200"
             >
               <Check className="w-4 h-4" />
               {isSaving ? 'Saving...' : 'Save Budget'}

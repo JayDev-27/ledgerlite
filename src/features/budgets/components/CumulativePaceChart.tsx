@@ -66,8 +66,8 @@ export const CumulativePaceChart: React.FC<CumulativePaceChartProps> = ({
         >
           <defs>
             <linearGradient id="actualSpendGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#84B3CE" stopOpacity={0.4} />
-              <stop offset="95%" stopColor="#84B3CE" stopOpacity={0.0} />
+              <stop offset="5%" stopColor="#00B3DD" stopOpacity={0.4} />
+              <stop offset="95%" stopColor="#00B3DD" stopOpacity={0.0} />
             </linearGradient>
           </defs>
           <CartesianGrid
@@ -101,7 +101,7 @@ export const CumulativePaceChart: React.FC<CumulativePaceChartProps> = ({
 
                 return (
                   <div className="bg-white dark:bg-dark-surface p-3 rounded-xl border border-cream-200 dark:border-dark-border shadow-lg text-xs space-y-1">
-                    <div className="font-bold text-deep-blue-900 dark:text-cream-100 mb-1">
+                    <div className="font-semibold text-deep-blue-900 dark:text-cream-100 mb-1">
                       Day {point.day} ({point.date})
                     </div>
                     {hasActual && (
@@ -129,7 +129,7 @@ export const CumulativePaceChart: React.FC<CumulativePaceChartProps> = ({
                     <div className="flex justify-between gap-4 pt-1 border-t border-cream-100 dark:border-dark-border">
                       <span>Pace Variance:</span>
                       <span
-                        className={`font-bold tabular-nums ${
+                        className={`font-semibold tabular-nums ${
                           variance > 0 ? 'text-status-danger' : 'text-status-success'
                         }`}
                       >
@@ -166,7 +166,7 @@ export const CumulativePaceChart: React.FC<CumulativePaceChartProps> = ({
             type="monotone"
             dataKey="idealCumulative"
             name="idealCumulative"
-            stroke="#16587B"
+            stroke="#847DFF"
             strokeWidth={2}
             strokeDasharray="5 5"
             dot={false}
@@ -177,10 +177,10 @@ export const CumulativePaceChart: React.FC<CumulativePaceChartProps> = ({
             type="monotone"
             dataKey="actualCumulative"
             name="actualCumulative"
-            stroke="#84B3CE"
+            stroke="#00B3DD"
             strokeWidth={3}
             fill="url(#actualSpendGradient)"
-            dot={{ r: 3, fill: '#84B3CE', strokeWidth: 1, stroke: '#FFFFFF' }}
+            dot={{ r: 3, fill: '#00B3DD', strokeWidth: 1, stroke: '#FFFFFF' }}
             connectNulls={false}
           />
 

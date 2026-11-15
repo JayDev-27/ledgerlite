@@ -46,7 +46,7 @@ export const BudgetAlertBanner: React.FC<BudgetAlertBannerProps> = ({ alerts }) 
             )}
           </div>
           <div>
-            <div className="font-bold text-sm text-deep-blue-900 dark:text-cream-100">
+            <div className="font-semibold text-sm text-deep-blue-900 dark:text-cream-100">
               {hasDanger
                 ? `Budget Limit Exceeded (${alerts.filter((a) => a.level === 'danger').length} warning${alerts.filter((a) => a.level === 'danger').length > 1 ? 's' : ''})`
                 : hasWarning
@@ -98,7 +98,7 @@ export const BudgetAlertBanner: React.FC<BudgetAlertBannerProps> = ({ alerts }) 
                       ? 'bg-status-danger'
                       : alert.level === 'warning'
                       ? 'bg-status-warning'
-                      : 'bg-deep-blue-500'
+                      : 'bg-deep-blue-500 dark:bg-white dark:text-black dark:hover:bg-cream-200'
                   }`}
                 />
                 {alert.message}

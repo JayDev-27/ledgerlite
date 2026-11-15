@@ -16,6 +16,7 @@ import { GoogleGenAI } from '@google/genai';
 import { useSettingsStore } from '@/store/settingsStore';
 import { repository } from '@/data/repository';
 import { secretsAdapter } from '@/lib/secrets';
+import { CLOUD_MODE } from '@/lib/auth/firebase';
 import { seedDatabase } from '@/data/seed';
 import { downloadBackupJson, restoreBackupPayload } from '@/lib/backup';
 import { requestQueue, type TodayUsageStats } from '@/lib/gemini/requestQueue';
@@ -108,7 +109,8 @@ export const SettingsPage: React.FC = () => {
     e.preventDefault();
     await secretsAdapter.setApiKey(apiKeyInput.trim());
     await updateSettings({ geminiApiKey: apiKeyInput.trim() });
-    setStatusMsg({ type: 'success', text: 'Gemini API key saved securely via SecretsAdapter.' });
+    window.dispatchEvent(new CustomEvent('gemini-key-updated'));
+    setStatusMsg({ type: 'success', text: 'Gemini API key saved.' });
     setTimeout(() => setStatusMsg(null), 4000);
     fetchModels(apiKeyInput.trim());
   };
@@ -252,15 +254,6 @@ export const SettingsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-4xl animate-fadeIn">
-      {/* Title */}
-      <div>
-        <h2 className="text-xl font-bold text-deep-blue-950 dark:text-cream-100">
-          Preferences & Data Vault
-        </h2>
-        <p className="text-xs text-deep-blue-700/70 dark:text-cream-300">
-          Regional conventions, Gemini dynamic models, quota controls, and offline data safety
-        </p>
-      </div>
 
       {statusMsg && (
         <div
@@ -366,7 +359,7 @@ export const SettingsPage: React.FC = () => {
         {/* Privacy Mode Disclosure Box */}
         <div className="p-4 rounded-xl bg-deep-blue-50/70 dark:bg-dark-elevated border border-deep-blue-200/60 dark:border-dark-border text-xs space-y-3 text-deep-blue-900 dark:text-cream-200">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 font-bold text-deep-blue-950 dark:text-cream-100">
+            <div className="flex items-center gap-2 font-semibold text-deep-blue-950 dark:text-cream-100">
               <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>Privacy Mode (Free-Tier Protection)</span>
             </div>
@@ -406,7 +399,7 @@ export const SettingsPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold transition-colors flex-shrink-0"
+                  className="px-4 py-2 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold transition-colors flex-shrink-0 dark:bg-white dark:text-black dark:hover:bg-cream-200"
                 >
                   Save Key
                 </button>
@@ -445,14 +438,16 @@ export const SettingsPage: React.FC = () => {
                   <span>{testResult.message}</span>
                 </div>
                 {testResult.latencyMs !== undefined && (
-                  <span className="font-mono text-[11px] font-bold">
+                  <span className="font-mono text-[11px] font-semibold">
                     Latency: {testResult.latencyMs}ms
                   </span>
                 )}
               </div>
             )}
             <p className="text-[11px] text-deep-blue-600/70 dark:text-cream-400 mt-1">
-              Encrypted and stored locally via SecretsAdapter in browser IndexedDB. Never transmitted to third-party servers.
+              {CLOUD_MODE
+                ? 'Saved to your private account vault — only you can read it. Sent only to Google when you use AI features.'
+                : 'Stored only in this browser. Sent only to Google when you use AI features.'}
             </p>
           </div>
         </form>
@@ -530,7 +525,7 @@ export const SettingsPage: React.FC = () => {
               </div>
               <div className="w-full h-2 rounded-full bg-cream-200 dark:bg-dark-surface overflow-hidden">
                 <div
-                  className="h-full bg-deep-blue-500 rounded-full transition-all"
+                  className="h-full bg-deep-blue-500 rounded-full transition-all dark:bg-white dark:text-black dark:hover:bg-cream-200"
                   style={{
                     width: `${Math.min(
                       100,
@@ -629,7 +624,7 @@ export const SettingsPage: React.FC = () => {
           {!settings.storagePersisted && (
             <button
               onClick={handlePersistStorage}
-              className="px-3 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold transition-colors dark:bg-white dark:text-black dark:hover:bg-cream-200"
             >
               Request Persistence
             </button>

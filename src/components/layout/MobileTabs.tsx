@@ -14,16 +14,17 @@ export const MobileTabs: React.FC = () => {
   const { openQuickAdd } = useUiStore();
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-cream-50/95 dark:bg-dark-surface/95 backdrop-blur-md border-t border-cream-200 dark:border-dark-border px-2 py-1.5 safe-bottom">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-cream-50/95 dark:bg-[#0E0F10]/90 backdrop-blur-md border-t border-cream-200 dark:border-dark-border px-2 py-1.5 safe-bottom">
       <div className="flex items-center justify-around">
         {/* Dashboard */}
         <NavLink
-          to="/"
+          to="/app"
+          end
           className={({ isActive }) =>
             clsx(
               'flex flex-col items-center justify-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors',
               isActive
-                ? 'text-deep-blue-500 dark:text-cream-100 font-semibold'
+                ? 'text-deep-blue-500 dark:text-sky-400 font-semibold'
                 : 'text-deep-blue-700/60 dark:text-cream-400'
             )
           }
@@ -34,7 +35,7 @@ export const MobileTabs: React.FC = () => {
 
         {/* Transactions */}
         <NavLink
-          to="/transactions"
+          to="/app/transactions"
           className={({ isActive }) =>
             clsx(
               'flex flex-col items-center justify-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors',
@@ -64,7 +65,7 @@ export const MobileTabs: React.FC = () => {
 
         {/* Budgets */}
         <NavLink
-          to="/budgets"
+          to="/app/budgets"
           className={({ isActive }) =>
             clsx(
               'flex flex-col items-center justify-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors',
@@ -80,7 +81,7 @@ export const MobileTabs: React.FC = () => {
 
         {/* Assistant */}
         <NavLink
-          to="/assistant"
+          to="/app/assistant"
           className={({ isActive }) =>
             clsx(
               'flex flex-col items-center justify-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors',

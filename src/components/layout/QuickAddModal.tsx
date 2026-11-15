@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
-  Sparkles,
+  Lightbulb,
   Check,
   Calendar,
   CreditCard,
@@ -184,7 +184,7 @@ export const QuickAddModal: React.FC = () => {
               }`}
             >
               <span className="flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-deep-blue-600 dark:text-cream-300" />
+                <Lightbulb className="w-4 h-4 text-deep-blue-600 dark:text-cream-300" />
                 Natural Language Quick-Add
               </span>
             </button>
@@ -248,7 +248,7 @@ export const QuickAddModal: React.FC = () => {
               <div className="p-4 rounded-xl bg-cream-50/80 dark:bg-dark-elevated/80 border border-sky-200 dark:border-dark-border space-y-3">
                 <div className="flex items-center justify-between text-xs font-semibold text-deep-blue-700 dark:text-cream-300 uppercase tracking-wider">
                   <div className="flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-deep-blue-600 dark:text-cream-300" />
+                    <Lightbulb className="w-3.5 h-3.5 text-deep-blue-600 dark:text-cream-300" />
                     <span>Detected Transaction Draft</span>
                   </div>
                   {isAiParsing && (
@@ -260,7 +260,7 @@ export const QuickAddModal: React.FC = () => {
                 </div>
 
                 <div className="flex items-baseline justify-between">
-                  <div className="text-2xl font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+                  <div className="text-2xl font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
                     {formatCurrency(draft.amount)}
                   </div>
                   <div className="text-sm font-medium text-deep-blue-800 dark:text-cream-200">
@@ -286,7 +286,7 @@ export const QuickAddModal: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full mt-2 py-2.5 px-4 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 active:bg-deep-blue-700 text-cream-100 text-sm font-semibold flex items-center justify-center gap-2 shadow-sm transition-all"
+                  className="w-full mt-2 py-2.5 px-4 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 active:bg-deep-blue-700 text-cream-100 text-sm font-semibold flex items-center justify-center gap-2 shadow-sm transition-all dark:bg-white dark:text-black dark:hover:bg-cream-200"
                 >
                   <Check className="w-4 h-4" />
                   Confirm & Save
@@ -406,7 +406,7 @@ export const QuickAddModal: React.FC = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full mt-4 py-2.5 px-4 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-sm font-semibold flex items-center justify-center gap-2 shadow-sm transition-all"
+              className="w-full mt-4 py-2.5 px-4 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-sm font-semibold flex items-center justify-center gap-2 shadow-sm transition-all dark:bg-white dark:text-black dark:hover:bg-cream-200"
             >
               <PlusCircle className="w-4 h-4" />
               Save Transaction

@@ -18,7 +18,7 @@ export const OfflineIndicator: React.FC = () => {
           <WifiOff className="w-4 h-4" />
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-          <span className="font-bold flex items-center gap-1.5">
+          <span className="font-semibold flex items-center gap-1.5">
             Offline Mode Active
             <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
           </span>

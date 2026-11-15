@@ -40,10 +40,10 @@ export const CategoryBudgetCard: React.FC<CategoryBudgetCardProps> = ({
           <div className="flex items-center gap-2.5">
             <div
               className="w-4 h-4 rounded-full flex-shrink-0"
-              style={{ backgroundColor: color || '#16587B' }}
+              style={{ backgroundColor: color || '#847DFF' }}
             />
             <div>
-              <h3 className="font-bold text-sm text-deep-blue-900 dark:text-cream-100 line-clamp-1">
+              <h3 className="font-semibold text-sm text-deep-blue-900 dark:text-cream-100 line-clamp-1">
                 {categoryName}
               </h3>
               <div className="mt-0.5">
@@ -65,7 +65,7 @@ export const CategoryBudgetCard: React.FC<CategoryBudgetCardProps> = ({
         <div className="flex items-baseline justify-between mt-3 mb-1.5">
           <span className="text-xs text-deep-blue-700 dark:text-cream-300">
             Spent:{' '}
-            <strong className="font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+            <strong className="font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
               {formatCurrency(spent, { hideDecimals: true })}
             </strong>
           </span>
@@ -109,7 +109,7 @@ export const CategoryBudgetCard: React.FC<CategoryBudgetCardProps> = ({
               +{formatCurrency(rolloverAmount, { compact: true, hideDecimals: true })} roll
             </span>
           )}
-          <span className="font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+          <span className="font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
             {percentUsed.toFixed(0)}%
           </span>
         </div>

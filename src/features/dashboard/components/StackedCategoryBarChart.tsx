@@ -104,7 +104,7 @@ export const StackedCategoryBarChart: React.FC<StackedCategoryBarChartProps> = (
                 );
                 return (
                   <div className="bg-white dark:bg-dark-surface p-3 rounded-xl border border-cream-200 dark:border-dark-border shadow-lg text-xs space-y-1.5 min-w-[180px]">
-                    <div className="font-bold text-deep-blue-900 dark:text-cream-100 flex items-center justify-between border-b border-cream-100 dark:border-dark-border pb-1">
+                    <div className="font-semibold text-deep-blue-900 dark:text-cream-100 flex items-center justify-between border-b border-cream-100 dark:border-dark-border pb-1">
                       <span>{label}</span>
                       <span className="tabular-nums">
                         {formatCurrency(totalInBucket, { hideDecimals: true })}
@@ -153,7 +153,7 @@ export const StackedCategoryBarChart: React.FC<StackedCategoryBarChartProps> = (
               dataKey={cat.key}
               name={cat.name}
               stackId="categoryStack"
-              fill={cat.color || '#16587B'}
+              fill={cat.color || '#847DFF'}
               radius={idx === categories.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
               maxBarSize={36}
             />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Printer,
-  Sparkles,
+  Lightbulb,
   FileSpreadsheet,
   FileDown,
   History,
@@ -445,14 +445,14 @@ export const ReportsPage: React.FC = () => {
 
   const paymentItems: PaymentMethodItem[] = useMemo(() => {
     if (!pack) return [];
-    const colors = ['#16587B', '#84B3CE', '#C05621', '#276749', '#9B2C2C'];
+    const colors = ['#847DFF', '#00B3DD', '#C05621', '#276749', '#9B2C2C'];
     return pack.paymentMethods.map((m, idx) => ({
       id: m.method,
       name: m.label,
       amount: m.amount,
       txCount: m.count,
       percent: Math.round(m.percentage),
-      color: colors[idx % colors.length] || '#16587B',
+      color: colors[idx % colors.length] || '#847DFF',
     }));
   }, [pack]);
 
@@ -462,7 +462,7 @@ export const ReportsPage: React.FC = () => {
       <div className="hidden print:block mb-8 border-b-2 border-deep-blue-900 pb-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-deep-blue-950">
+            <h1 className="text-2xl font-semibold tracking-tight text-deep-blue-950">
               {APP_NAME} — Financial Performance Report
             </h1>
             <p className="text-xs text-deep-blue-800">
@@ -470,7 +470,7 @@ export const ReportsPage: React.FC = () => {
             </p>
           </div>
           <div className="text-right text-xs">
-            <div className="font-bold text-deep-blue-950">{currentPeriod.label}</div>
+            <div className="font-semibold text-deep-blue-950">{currentPeriod.label}</div>
             <div className="text-deep-blue-700">
               {currentPeriod.startDate} to {currentPeriod.endDate}
             </div>
@@ -499,7 +499,7 @@ export const ReportsPage: React.FC = () => {
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 periodType === btn.type
-                  ? 'bg-deep-blue-500 text-cream-100 shadow-sm'
+                  ? 'bg-deep-blue-500 text-cream-100 shadow-sm dark:bg-white dark:text-black dark:hover:bg-cream-200'
                   : 'text-deep-blue-800 dark:text-cream-300 hover:text-deep-blue-950 dark:hover:text-white'
               }`}
             >
@@ -539,18 +539,18 @@ export const ReportsPage: React.FC = () => {
               onClick={() => setGenerationMethod('ai')}
               className={`px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${
                 generationMethod === 'ai'
-                  ? 'bg-deep-blue-500 text-cream-100 shadow-xs'
+                  ? 'bg-deep-blue-500 text-cream-100 shadow-xs dark:bg-white dark:text-black dark:hover:bg-cream-200'
                   : 'text-deep-blue-700 dark:text-cream-300'
               }`}
             >
-              <Sparkles className="w-3 h-3 text-cream-200" />
+              <Lightbulb className="w-3 h-3 text-cream-200" />
               <span>AI</span>
             </button>
             <button
               onClick={() => setGenerationMethod('template')}
               className={`px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${
                 generationMethod === 'template'
-                  ? 'bg-deep-blue-500 text-cream-100 shadow-xs'
+                  ? 'bg-deep-blue-500 text-cream-100 shadow-xs dark:bg-white dark:text-black dark:hover:bg-cream-200'
                   : 'text-deep-blue-700 dark:text-cream-300'
               }`}
             >
@@ -562,9 +562,9 @@ export const ReportsPage: React.FC = () => {
           <button
             onClick={() => handleGenerateReport(false)}
             disabled={isGenerating || loading}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 active:bg-deep-blue-700 text-cream-100 text-xs font-semibold shadow-sm transition-all disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 active:bg-deep-blue-700 text-cream-100 text-xs font-semibold shadow-sm transition-all disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-cream-200"
           >
-            <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+            <Lightbulb className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
             <span>{isGenerating ? 'Synthesising...' : 'Generate Report'}</span>
           </button>
 
@@ -577,7 +577,7 @@ export const ReportsPage: React.FC = () => {
             <History className="w-3.5 h-3.5 text-deep-blue-600 dark:text-cream-300" />
             <span className="hidden sm:inline">History</span>
             {savedReports.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-deep-blue-100 dark:bg-dark-surface text-[10px] font-bold text-deep-blue-800 dark:text-cream-100">
+              <span className="px-1.5 py-0.2 rounded-full bg-deep-blue-100 dark:bg-dark-surface text-[10px] font-semibold text-deep-blue-800 dark:text-cream-100">
                 {savedReports.length}
               </span>
             )}
@@ -594,7 +594,7 @@ export const ReportsPage: React.FC = () => {
           </div>
           <button
             onClick={() => setToastMessage(null)}
-            className="text-emerald-700 hover:text-emerald-900 ml-4 font-bold"
+            className="text-emerald-700 hover:text-emerald-900 ml-4 font-semibold"
           >
             ✕
           </button>
@@ -605,13 +605,13 @@ export const ReportsPage: React.FC = () => {
       <div className="print:hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-bold text-deep-blue-950 dark:text-cream-100">
+            <h2 className="text-xl font-semibold text-deep-blue-950 dark:text-cream-100">
               {reportContent?.title || `Report — ${currentPeriod.label}`}
             </h2>
             <Badge variant={reportContent?.generatedBy === 'ai' ? 'info' : 'neutral'} size="sm">
               {reportContent?.generatedBy === 'ai'
-                ? `AI Synthesised (${reportContent.modelName || 'Gemini'})`
-                : 'Offline Deterministic'}
+                ? 'Written with Gemini'
+                : 'Calculated locally'}
             </Badge>
           </div>
           <p className="text-xs text-deep-blue-700/80 dark:text-cream-300">
@@ -666,21 +666,21 @@ export const ReportsPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Total Spend */}
               <div className="p-5 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle space-y-2">
-                <div className="text-xs font-bold text-deep-blue-700 dark:text-cream-300 uppercase tracking-wider">
+                <div className="text-xs font-semibold text-deep-blue-700 dark:text-cream-300 uppercase tracking-wider">
                   Total Period Outflow
                 </div>
-                <div className="text-2xl font-bold tabular-nums text-deep-blue-950 dark:text-cream-100">
+                <div className="text-2xl font-semibold tabular-nums text-deep-blue-950 dark:text-cream-100">
                   {formatCurrency(pack.kpis.totalSpend.current)}
                 </div>
                 {pack.kpis.totalSpend.previous !== undefined && (
                   <div className="flex items-center gap-1.5 text-xs">
                     {pack.kpis.totalSpend.trend === 'up' ? (
-                      <span className="flex items-center font-bold text-rose-600 dark:text-rose-400">
+                      <span className="flex items-center font-semibold text-rose-600 dark:text-rose-400">
                         <TrendingUp className="w-3.5 h-3.5 mr-0.5" />
                         {formatPercentDelta(pack.kpis.totalSpend.percentChange || 0)}
                       </span>
                     ) : pack.kpis.totalSpend.trend === 'down' ? (
-                      <span className="flex items-center font-bold text-emerald-600 dark:text-emerald-400">
+                      <span className="flex items-center font-semibold text-emerald-600 dark:text-emerald-400">
                         <TrendingDown className="w-3.5 h-3.5 mr-0.5" />
                         {formatPercentDelta(pack.kpis.totalSpend.percentChange || 0)}
                       </span>
@@ -698,10 +698,10 @@ export const ReportsPage: React.FC = () => {
 
               {/* Transaction Count */}
               <div className="p-5 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle space-y-2">
-                <div className="text-xs font-bold text-deep-blue-700 dark:text-cream-300 uppercase tracking-wider">
+                <div className="text-xs font-semibold text-deep-blue-700 dark:text-cream-300 uppercase tracking-wider">
                   Transaction Volume
                 </div>
-                <div className="text-2xl font-bold tabular-nums text-deep-blue-950 dark:text-cream-100">
+                <div className="text-2xl font-semibold tabular-nums text-deep-blue-950 dark:text-cream-100">
                   {pack.kpis.transactionCount.current}{' '}
                   <span className="text-xs font-normal text-deep-blue-600 dark:text-cream-300">txs</span>
                 </div>
@@ -715,10 +715,10 @@ export const ReportsPage: React.FC = () => {
 
               {/* Daily Average */}
               <div className="p-5 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle space-y-2">
-                <div className="text-xs font-bold text-deep-blue-700 dark:text-cream-300 uppercase tracking-wider">
+                <div className="text-xs font-semibold text-deep-blue-700 dark:text-cream-300 uppercase tracking-wider">
                   Daily Burn Rate
                 </div>
-                <div className="text-2xl font-bold tabular-nums text-deep-blue-950 dark:text-cream-100">
+                <div className="text-2xl font-semibold tabular-nums text-deep-blue-950 dark:text-cream-100">
                   {formatCurrency(pack.kpis.dailyAverage.current)}
                   <span className="text-xs font-normal text-deep-blue-600 dark:text-cream-300">/day</span>
                 </div>
@@ -731,11 +731,11 @@ export const ReportsPage: React.FC = () => {
 
               {/* Budget Variance */}
               <div className="p-5 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle space-y-2">
-                <div className="text-xs font-bold text-deep-blue-700 dark:text-cream-300 uppercase tracking-wider">
+                <div className="text-xs font-semibold text-deep-blue-700 dark:text-cream-300 uppercase tracking-wider">
                   Budget Headroom
                 </div>
                 <div
-                  className={`text-2xl font-bold tabular-nums ${
+                  className={`text-2xl font-semibold tabular-nums ${
                     pack.budgetStatus.variance >= 0
                       ? 'text-emerald-700 dark:text-emerald-400'
                       : 'text-rose-600 dark:text-rose-400'
@@ -759,8 +759,8 @@ export const ReportsPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Executive Narrative Overview */}
               <div className="lg:col-span-2 p-6 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle space-y-4">
-                <div className="flex items-center gap-2 text-deep-blue-800 dark:text-cream-300 font-bold text-xs uppercase tracking-wider border-b border-cream-200 dark:border-dark-border pb-3">
-                  <Sparkles className="w-4 h-4 text-deep-blue-500 dark:text-cream-300" />
+                <div className="flex items-center gap-2 text-deep-blue-800 dark:text-cream-300 font-semibold text-xs uppercase tracking-wider border-b border-cream-200 dark:border-dark-border pb-3">
+                  <Lightbulb className="w-4 h-4 text-deep-blue-500 dark:text-cream-300" />
                   <span>Executive Financial Review</span>
                 </div>
 
@@ -771,13 +771,13 @@ export const ReportsPage: React.FC = () => {
                 {/* Analytical Bullets */}
                 {reportContent.narrativeInsights.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-cream-200 dark:border-dark-border space-y-2.5">
-                    <div className="text-xs font-bold text-deep-blue-900 dark:text-cream-100 uppercase tracking-wider">
+                    <div className="text-xs font-semibold text-deep-blue-900 dark:text-cream-100 uppercase tracking-wider">
                       Key Quantitative Observations
                     </div>
                     <ul className="space-y-2 text-xs text-deep-blue-800 dark:text-cream-200">
                       {reportContent.narrativeInsights.map((insight, idx) => (
                         <li key={idx} className="flex items-start gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-deep-blue-500 mt-1.5 flex-shrink-0" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-deep-blue-500 mt-1.5 flex-shrink-0 dark:bg-white dark:text-black dark:hover:bg-cream-200" />
                           <span>{insight}</span>
                         </li>
                       ))}
@@ -789,7 +789,7 @@ export const ReportsPage: React.FC = () => {
               {/* Actionable Recommendations Card */}
               <div className="p-6 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle flex flex-col justify-between space-y-4">
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-deep-blue-800 dark:text-cream-300 font-bold text-xs uppercase tracking-wider border-b border-cream-200 dark:border-dark-border pb-3">
+                  <div className="flex items-center gap-2 text-deep-blue-800 dark:text-cream-300 font-semibold text-xs uppercase tracking-wider border-b border-cream-200 dark:border-dark-border pb-3">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     <span>Strategic Recommendations</span>
                   </div>
@@ -800,7 +800,7 @@ export const ReportsPage: React.FC = () => {
                         key={idx}
                         className="p-3 rounded-xl bg-cream-50 dark:bg-dark-elevated border border-cream-200 dark:border-dark-border text-xs leading-relaxed text-deep-blue-900 dark:text-cream-200 space-y-1"
                       >
-                        <div className="font-bold text-deep-blue-950 dark:text-cream-100 flex items-center justify-between">
+                        <div className="font-semibold text-deep-blue-950 dark:text-cream-100 flex items-center justify-between">
                           <span>Action {idx + 1}</span>
                           <span className="text-[10px] font-semibold text-deep-blue-600 dark:text-cream-300">
                             {idx === 0 ? 'High Priority' : 'Optimisation'}
@@ -824,7 +824,7 @@ export const ReportsPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Category Donut */}
               <div className="p-6 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle">
-                <h3 className="text-sm font-bold text-deep-blue-950 dark:text-cream-100 mb-1">
+                <h3 className="text-sm font-semibold text-deep-blue-950 dark:text-cream-100 mb-1">
                   Category Distribution
                 </h3>
                 <p className="text-xs text-deep-blue-700/70 dark:text-cream-300 mb-4">
@@ -835,7 +835,7 @@ export const ReportsPage: React.FC = () => {
 
               {/* Daily Spend Trend */}
               <div className="p-6 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle">
-                <h3 className="text-sm font-bold text-deep-blue-950 dark:text-cream-100 mb-1">
+                <h3 className="text-sm font-semibold text-deep-blue-950 dark:text-cream-100 mb-1">
                   Daily Spending Velocity
                 </h3>
                 <p className="text-xs text-deep-blue-700/70 dark:text-cream-300 mb-4">
@@ -846,7 +846,7 @@ export const ReportsPage: React.FC = () => {
 
               {/* 50/30/20 Framework Progress */}
               <div className="p-6 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle">
-                <h3 className="text-sm font-bold text-deep-blue-950 dark:text-cream-100 mb-1">
+                <h3 className="text-sm font-semibold text-deep-blue-950 dark:text-cream-100 mb-1">
                   50 / 30 / 20 Wealth Allocation Split
                 </h3>
                 <p className="text-xs text-deep-blue-700/70 dark:text-cream-300 mb-4">
@@ -862,7 +862,7 @@ export const ReportsPage: React.FC = () => {
 
               {/* Top Merchants Leaderboard */}
               <div className="p-6 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle">
-                <h3 className="text-sm font-bold text-deep-blue-950 dark:text-cream-100 mb-1">
+                <h3 className="text-sm font-semibold text-deep-blue-950 dark:text-cream-100 mb-1">
                   Top Payee Concentration
                 </h3>
                 <p className="text-xs text-deep-blue-700/70 dark:text-cream-300 mb-4">
@@ -873,7 +873,7 @@ export const ReportsPage: React.FC = () => {
 
               {/* Payment Method Split */}
               <div className="lg:col-span-2 p-6 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle">
-                <h3 className="text-sm font-bold text-deep-blue-950 dark:text-cream-100 mb-1">
+                <h3 className="text-sm font-semibold text-deep-blue-950 dark:text-cream-100 mb-1">
                   Disbursement Instruments
                 </h3>
                 <p className="text-xs text-deep-blue-700/70 dark:text-cream-300 mb-4">
@@ -889,7 +889,7 @@ export const ReportsPage: React.FC = () => {
             <div className="p-6 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-bold text-deep-blue-950 dark:text-cream-100 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-deep-blue-950 dark:text-cream-100 flex items-center gap-2">
                     <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                     <span>Flagged Outlier Transactions & Spikes</span>
                   </h3>
@@ -906,7 +906,7 @@ export const ReportsPage: React.FC = () => {
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="border-b border-cream-200 dark:border-dark-border text-left font-bold text-deep-blue-700 dark:text-cream-300">
+                      <tr className="border-b border-cream-200 dark:border-dark-border text-left font-semibold text-deep-blue-700 dark:text-cream-300">
                         <th className="py-2.5 px-3">Date</th>
                         <th className="py-2.5 px-3">Merchant</th>
                         <th className="py-2.5 px-3">Category</th>
@@ -927,7 +927,7 @@ export const ReportsPage: React.FC = () => {
                           <td className="py-2 px-3 text-deep-blue-800 dark:text-cream-300">
                             {anom.categoryName}
                           </td>
-                          <td className="py-2 px-3 font-bold tabular-nums text-deep-blue-950 dark:text-cream-100">
+                          <td className="py-2 px-3 font-semibold tabular-nums text-deep-blue-950 dark:text-cream-100">
                             {formatCurrency(anom.amount)}
                           </td>
                           <td className="py-2 px-3 text-deep-blue-700 dark:text-cream-300">
@@ -935,7 +935,7 @@ export const ReportsPage: React.FC = () => {
                           </td>
                           <td className="py-2 px-3">
                             <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
                                 anom.severity === 'high'
                                   ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
                                   : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
@@ -965,14 +965,14 @@ export const ReportsPage: React.FC = () => {
             <div className="p-6 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-bold text-deep-blue-950 dark:text-cream-100">
+                  <h3 className="text-sm font-semibold text-deep-blue-950 dark:text-cream-100">
                     Comprehensive Category Breakdown
                   </h3>
                   <p className="text-xs text-deep-blue-700/70 dark:text-cream-300">
                     Complete breakdown including allocated budget limits and headroom
                   </p>
                 </div>
-                <div className="text-xs font-bold tabular-nums text-deep-blue-950 dark:text-cream-100">
+                <div className="text-xs font-semibold tabular-nums text-deep-blue-950 dark:text-cream-100">
                   Total: {formatCurrency(pack.kpis.totalSpend.current)}
                 </div>
               </div>
@@ -980,7 +980,7 @@ export const ReportsPage: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="border-b border-cream-200 dark:border-dark-border text-left font-bold text-deep-blue-700 dark:text-cream-300">
+                    <tr className="border-b border-cream-200 dark:border-dark-border text-left font-semibold text-deep-blue-700 dark:text-cream-300">
                       <th className="py-2.5 px-3">Category</th>
                       <th className="py-2.5 px-3">Type</th>
                       <th className="py-2.5 px-3">Transactions</th>
@@ -1004,13 +1004,13 @@ export const ReportsPage: React.FC = () => {
                             </span>
                           </div>
                         </td>
-                        <td className="py-2.5 px-3 uppercase text-[10px] font-bold text-deep-blue-700 dark:text-cream-300">
+                        <td className="py-2.5 px-3 uppercase text-[10px] font-semibold text-deep-blue-700 dark:text-cream-300">
                           {cat.categoryType}
                         </td>
                         <td className="py-2.5 px-3 tabular-nums text-deep-blue-800 dark:text-cream-300">
                           {cat.transactionCount}
                         </td>
-                        <td className="py-2.5 px-3 font-bold tabular-nums text-deep-blue-950 dark:text-cream-100">
+                        <td className="py-2.5 px-3 font-semibold tabular-nums text-deep-blue-950 dark:text-cream-100">
                           {formatCurrency(cat.amount)}
                         </td>
                         <td className="py-2.5 px-3 tabular-nums text-deep-blue-800 dark:text-cream-300">
@@ -1044,7 +1044,7 @@ export const ReportsPage: React.FC = () => {
             <div className="p-6 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-bold text-deep-blue-950 dark:text-cream-100 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-deep-blue-950 dark:text-cream-100 flex items-center gap-2">
                     <Repeat className="w-4 h-4 text-deep-blue-600 dark:text-cream-300" />
                     <span>Fixed Recurring Obligations &amp; Subscriptions</span>
                   </h3>
@@ -1052,7 +1052,7 @@ export const ReportsPage: React.FC = () => {
                     Recurring expenses and predictable debit baseline
                   </p>
                 </div>
-                <div className="text-xs font-bold tabular-nums text-deep-blue-950 dark:text-cream-100">
+                <div className="text-xs font-semibold tabular-nums text-deep-blue-950 dark:text-cream-100">
                   {formatCurrency(pack.recurringSummary.totalRecurringSpend)} in period
                 </div>
               </div>
@@ -1065,10 +1065,10 @@ export const ReportsPage: React.FC = () => {
                       className="p-3 rounded-xl bg-cream-50 dark:bg-dark-elevated border border-cream-200 dark:border-dark-border text-xs space-y-1"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-deep-blue-950 dark:text-cream-100 truncate">
+                        <span className="font-semibold text-deep-blue-950 dark:text-cream-100 truncate">
                           {rec.merchant}
                         </span>
-                        <span className="font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+                        <span className="font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
                           {formatCurrency(rec.amount)}
                         </span>
                       </div>
@@ -1107,7 +1107,7 @@ export const ReportsPage: React.FC = () => {
             <div className="flex items-center justify-between border-b border-cream-200 dark:border-dark-border pb-3">
               <div className="flex items-center gap-2">
                 <History className="w-5 h-5 text-deep-blue-700 dark:text-cream-200" />
-                <h3 id="reports-vault-title" className="text-base font-bold text-deep-blue-950 dark:text-cream-100">
+                <h3 id="reports-vault-title" className="text-base font-semibold text-deep-blue-950 dark:text-cream-100">
                   Archived Reports Vault
                 </h3>
               </div>
@@ -1139,7 +1139,7 @@ export const ReportsPage: React.FC = () => {
                   >
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-xs text-deep-blue-950 dark:text-cream-100 truncate">
+                        <span className="font-semibold text-xs text-deep-blue-950 dark:text-cream-100 truncate">
                           {saved.title}
                         </span>
                         <Badge variant={saved.content.generatedBy === 'ai' ? 'info' : 'neutral'} size="sm">
@@ -1169,7 +1169,7 @@ export const ReportsPage: React.FC = () => {
             <div className="pt-3 border-t border-cream-200 dark:border-dark-border flex justify-end">
               <button
                 onClick={() => setHistoryOpen(false)}
-                className="px-4 py-2 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
+                className="px-4 py-2 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500 dark:bg-white dark:text-black dark:hover:bg-cream-200"
               >
                 Close Vault
               </button>
@@ -1194,7 +1194,7 @@ export const ReportsPage: React.FC = () => {
             className="bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-card"
           >
             <div className="flex items-center justify-between">
-              <h3 id="custom-picker-title" className="text-sm font-bold text-deep-blue-950 dark:text-cream-100">
+              <h3 id="custom-picker-title" className="text-sm font-semibold text-deep-blue-950 dark:text-cream-100">
                 Select Custom Period Range
               </h3>
               <button
@@ -1246,7 +1246,7 @@ export const ReportsPage: React.FC = () => {
                   setActiveSavedReportId(null);
                   setShowCustomPicker(false);
                 }}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-deep-blue-500 text-cream-100 hover:bg-deep-blue-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-deep-blue-500 text-cream-100 hover:bg-deep-blue-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500 dark:bg-white dark:text-black dark:hover:bg-cream-200"
               >
                 Apply Range
               </button>

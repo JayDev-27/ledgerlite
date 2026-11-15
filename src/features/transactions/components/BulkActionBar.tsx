@@ -42,7 +42,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
   return (
     <div className="fixed bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 z-40 bg-deep-blue-950 text-cream-100 px-5 py-3 rounded-2xl shadow-modal border border-deep-blue-800 flex items-center gap-3 sm:gap-4 animate-slideUp text-xs font-semibold">
       <div className="flex items-center gap-2 pr-3 border-r border-deep-blue-800">
-        <span className="tabular-nums font-bold text-cream-100 text-sm">{selectedCount}</span>
+        <span className="tabular-nums font-semibold text-cream-100 text-sm">{selectedCount}</span>
         <span className="hidden sm:inline text-cream-200">selected</span>
       </div>
 
@@ -61,7 +61,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
 
         {showCategoryPicker && (
           <div className="absolute bottom-full mb-2 left-0 w-64 bg-white dark:bg-dark-surface text-deep-blue-950 dark:text-cream-100 p-3 rounded-xl border border-cream-200 dark:border-dark-border shadow-modal space-y-2 z-50 animate-fadeIn">
-            <div className="font-bold text-[11px] text-deep-blue-700/80 dark:text-cream-400">
+            <div className="font-semibold text-[11px] text-deep-blue-700/80 dark:text-cream-400">
               Select New Category:
             </div>
             <select
@@ -88,7 +88,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
                 type="button"
                 disabled={!selectedCatId}
                 onClick={handleApplyCategory}
-                className="px-3 py-1 bg-deep-blue-500 hover:bg-deep-blue-600 text-white rounded text-[11px] font-bold disabled:opacity-40"
+                className="px-3 py-1 bg-deep-blue-500 hover:bg-deep-blue-600 text-white rounded text-[11px] font-semibold disabled:opacity-40 dark:bg-white dark:text-black dark:hover:bg-cream-200"
               >
                 Apply
               </button>
@@ -112,7 +112,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
 
         {showPaymentPicker && (
           <div className="absolute bottom-full mb-2 left-0 w-56 bg-white dark:bg-dark-surface text-deep-blue-950 dark:text-cream-100 p-3 rounded-xl border border-cream-200 dark:border-dark-border shadow-modal space-y-2 z-50 animate-fadeIn">
-            <div className="font-bold text-[11px] text-deep-blue-700/80 dark:text-cream-400">
+            <div className="font-semibold text-[11px] text-deep-blue-700/80 dark:text-cream-400">
               Select Payment Method:
             </div>
             <select
@@ -137,7 +137,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
               <button
                 type="button"
                 onClick={handleApplyPayment}
-                className="px-3 py-1 bg-deep-blue-500 hover:bg-deep-blue-600 text-white rounded text-[11px] font-bold"
+                className="px-3 py-1 bg-deep-blue-500 hover:bg-deep-blue-600 text-white rounded text-[11px] font-semibold dark:bg-white dark:text-black dark:hover:bg-cream-200"
               >
                 Apply
               </button>

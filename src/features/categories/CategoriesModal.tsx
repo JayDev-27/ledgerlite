@@ -34,7 +34,7 @@ export const CategoriesModal: React.FC<CategoriesModalProps> = ({
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
   const [formType, setFormType] = useState<CategoryType>('need');
-  const [formColor, setFormColor] = useState('#16587B');
+  const [formColor, setFormColor] = useState('#847DFF');
   const [formParentId, setFormParentId] = useState<string | null>(null);
 
   // Merge State
@@ -63,10 +63,10 @@ export const CategoriesModal: React.FC<CategoriesModalProps> = ({
     if (parentId) {
       const parent = categories.find((c) => c.id === parentId);
       setFormType(parent?.type || 'need');
-      setFormColor(parent?.color || '#16587B');
+      setFormColor(parent?.color || '#847DFF');
     } else {
       setFormType('need');
-      setFormColor('#16587B');
+      setFormColor('#847DFF');
     }
   };
 
@@ -162,7 +162,7 @@ export const CategoriesModal: React.FC<CategoriesModalProps> = ({
           <div className="flex items-center gap-2">
             <Tag className="w-5 h-5 text-deep-blue-600 dark:text-cream-300" />
             <div>
-              <h3 id="categories-modal-title" className="font-bold text-base text-deep-blue-950 dark:text-cream-100">
+              <h3 id="categories-modal-title" className="font-semibold text-base text-deep-blue-950 dark:text-cream-100">
                 Categories & 50/30/20 Taxonomy
               </h3>
               <p className="text-xs text-deep-blue-700/70 dark:text-cream-400">
@@ -197,7 +197,7 @@ export const CategoriesModal: React.FC<CategoriesModalProps> = ({
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
                   activeTab === tab.id
-                    ? 'bg-deep-blue-500 text-cream-100'
+                    ? 'bg-deep-blue-500 text-cream-100 dark:bg-white dark:text-black dark:hover:bg-cream-200'
                     : 'text-deep-blue-700 dark:text-cream-300 hover:bg-cream-100 dark:hover:bg-dark-elevated'
                 }`}
               >
@@ -217,7 +217,7 @@ export const CategoriesModal: React.FC<CategoriesModalProps> = ({
             </button>
             <button
               onClick={() => handleStartAdd(null)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-bold transition-all shadow-sm"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold transition-all shadow-sm dark:bg-white dark:text-black dark:hover:bg-cream-200"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Category</span>
@@ -234,7 +234,7 @@ export const CategoriesModal: React.FC<CategoriesModalProps> = ({
               className="p-4 rounded-xl bg-sky-50 dark:bg-dark-elevated border border-sky-200 dark:border-dark-border space-y-3 animate-fadeIn"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-deep-blue-900 dark:text-cream-100">
+                <span className="text-xs font-semibold text-deep-blue-900 dark:text-cream-100">
                   Merge Two Categories:
                 </span>
                 <button
@@ -294,7 +294,7 @@ export const CategoriesModal: React.FC<CategoriesModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-white text-xs font-bold"
+                  className="px-4 py-1 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-white text-xs font-semibold dark:bg-white dark:text-black dark:hover:bg-cream-200"
                 >
                   Confirm Merge
                 </button>
@@ -309,7 +309,7 @@ export const CategoriesModal: React.FC<CategoriesModalProps> = ({
               className="p-4 rounded-xl bg-cream-50 dark:bg-dark-elevated border border-cream-200 dark:border-dark-border space-y-3 animate-fadeIn"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-deep-blue-900 dark:text-cream-100">
+                <span className="text-xs font-semibold text-deep-blue-900 dark:text-cream-100">
                   {editingCatId ? 'Edit Category' : formParentId ? 'Add Subcategory' : 'Add Category'}
                 </span>
                 <button
@@ -373,7 +373,7 @@ export const CategoriesModal: React.FC<CategoriesModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-white text-xs font-bold"
+                  className="px-4 py-1 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-white text-xs font-semibold dark:bg-white dark:text-black dark:hover:bg-cream-200"
                 >
                   Save
                 </button>
@@ -412,7 +412,7 @@ export const CategoriesModal: React.FC<CategoriesModalProps> = ({
                       </span>
 
                       <span
-                        className={`text-[10px] px-1.5 py-0.2 rounded font-bold uppercase ${
+                        className={`text-[10px] px-1.5 py-0.2 rounded font-semibold uppercase ${
                           parent.type === 'need'
                             ? 'bg-sky-100 text-deep-blue-700 dark:bg-sky-950 dark:text-cream-100'
                             : parent.type === 'want'

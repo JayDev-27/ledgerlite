@@ -192,7 +192,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-cream-200 dark:border-dark-border">
-          <h3 id="modal-tx-title" className="font-bold text-base text-deep-blue-950 dark:text-cream-100">
+          <h3 id="modal-tx-title" className="font-semibold text-base text-deep-blue-950 dark:text-cream-100">
             {initialData ? 'Edit Expense' : 'Add New Expense'}
           </h3>
           <button
@@ -483,7 +483,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex items-center gap-1.5 px-5 py-2 text-xs font-bold rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 shadow-sm transition-all"
+              className="flex items-center gap-1.5 px-5 py-2 text-xs font-semibold rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 shadow-sm transition-all dark:bg-white dark:text-black dark:hover:bg-cream-200"
             >
               <Check className="w-4 h-4" />
               <span>{initialData ? 'Update Expense' : 'Save Expense'}</span>

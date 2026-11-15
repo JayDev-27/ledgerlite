@@ -20,9 +20,10 @@ export default defineConfig({
         name: 'LedgerLite',
         short_name: 'LedgerLite',
         description: 'Private wealth & personal finance manager with local-first security and intelligence.',
-        theme_color: '#16587B',
-        background_color: '#F5EEDD',
+        theme_color: '#0B0C0D',
+        background_color: '#0B0C0D',
         display: 'standalone',
+        start_url: '/app',
         orientation: 'portrait-primary',
         icons: [
           {

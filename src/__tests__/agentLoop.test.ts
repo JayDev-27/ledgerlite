@@ -14,6 +14,7 @@ vi.mock('@google/genai', () => {
         generateContent: mockGenerateContent,
       },
     })),
+    FunctionCallingConfigMode: { AUTO: 'AUTO', ANY: 'ANY', NONE: 'NONE' },
     Type: {
       OBJECT: 'OBJECT',
       STRING: 'STRING',

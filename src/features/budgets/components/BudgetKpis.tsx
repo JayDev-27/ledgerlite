@@ -42,7 +42,7 @@ export const BudgetKpis: React.FC<BudgetKpisProps> = ({ metrics }) => {
             <Wallet className="w-4 h-4" />
           </div>
         </div>
-        <div className="text-2xl font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+        <div className="text-2xl font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
           {formatCurrency(effectiveLimit, { hideDecimals: true })}
         </div>
         <div className="mt-2 text-xs text-deep-blue-600 dark:text-cream-300">
@@ -69,7 +69,7 @@ export const BudgetKpis: React.FC<BudgetKpisProps> = ({ metrics }) => {
             <TrendingUp className="w-4 h-4" />
           </div>
         </div>
-        <div className="text-2xl font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+        <div className="text-2xl font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
           {formatCurrency(spent, { hideDecimals: true })}
         </div>
         <div className="mt-2 flex items-center gap-2">
@@ -102,7 +102,7 @@ export const BudgetKpis: React.FC<BudgetKpisProps> = ({ metrics }) => {
           </div>
         </div>
         <div
-          className={`text-2xl font-bold tabular-nums ${
+          className={`text-2xl font-semibold tabular-nums ${
             remaining < 0
               ? 'text-status-danger'
               : 'text-deep-blue-900 dark:text-cream-100'
@@ -152,7 +152,7 @@ export const BudgetKpis: React.FC<BudgetKpisProps> = ({ metrics }) => {
             </span>
           </div>
         </div>
-        <div className="text-2xl font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+        <div className="text-2xl font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
           {formatCurrency(projectedMonthEndSpend, { hideDecimals: true })}
         </div>
         <div className="mt-2 text-xs text-deep-blue-700 dark:text-cream-300">

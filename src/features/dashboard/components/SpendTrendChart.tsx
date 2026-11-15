@@ -64,8 +64,8 @@ export const SpendTrendChart: React.FC<SpendTrendChartProps> = ({ data }) => {
         >
           <defs>
             <linearGradient id="spendTrendGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#84B3CE" stopOpacity={0.45} />
-              <stop offset="95%" stopColor="#84B3CE" stopOpacity={0.0} />
+              <stop offset="5%" stopColor="#00B3DD" stopOpacity={0.45} />
+              <stop offset="95%" stopColor="#00B3DD" stopOpacity={0.0} />
             </linearGradient>
           </defs>
           <CartesianGrid
@@ -93,12 +93,12 @@ export const SpendTrendChart: React.FC<SpendTrendChartProps> = ({ data }) => {
                 const item = payload[0].payload as SpendTrendPoint;
                 return (
                   <div className="bg-white dark:bg-dark-surface p-3 rounded-xl border border-cream-200 dark:border-dark-border shadow-lg text-xs space-y-1">
-                    <div className="font-bold text-deep-blue-900 dark:text-cream-100">
+                    <div className="font-semibold text-deep-blue-900 dark:text-cream-100">
                       {item.date}
                     </div>
                     <div className="flex justify-between gap-4 text-deep-blue-700 dark:text-cream-200">
                       <span>Total Spent:</span>
-                      <span className="font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+                      <span className="font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
                         {formatCurrency(item.amount, { hideDecimals: true })}
                       </span>
                     </div>
@@ -117,11 +117,11 @@ export const SpendTrendChart: React.FC<SpendTrendChartProps> = ({ data }) => {
           <Area
             type="monotone"
             dataKey="amount"
-            stroke="#16587B"
+            stroke="#847DFF"
             strokeWidth={3}
             fill="url(#spendTrendGradient)"
-            dot={{ r: 3, fill: '#84B3CE', strokeWidth: 1.5, stroke: '#16587B' }}
-            activeDot={{ r: 6, fill: '#16587B', stroke: '#FFFFFF', strokeWidth: 2 }}
+            dot={{ r: 3, fill: '#00B3DD', strokeWidth: 1.5, stroke: '#847DFF' }}
+            activeDot={{ r: 6, fill: '#847DFF', stroke: '#FFFFFF', strokeWidth: 2 }}
           />
         </AreaChart>
       </ResponsiveContainer>

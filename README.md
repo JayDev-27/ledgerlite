@@ -280,6 +280,35 @@ npm run preview
 
 ---
 
+## 7b. Two Modes: Local-First vs Hosted
+
+LedgerLite picks its storage mode from the environment — the same code runs both ways.
+
+| | **Local mode** (clone & `npm run dev`) | **Hosted mode** (the website) |
+|---|---|---|
+| Trigger | No `VITE_FIREBASE_*` variables | All four `VITE_FIREBASE_*` variables set |
+| Accounts | On-device accounts (PBKDF2-hashed, this browser only) | Firebase Auth — email/password and Google |
+| Data | IndexedDB in your browser | Per-user Firestore vault at `users/{uid}/…`, cached in the browser while signed in and deleted on sign-out |
+| Gemini key | Settings, or `VITE_GEMINI_API_KEY` in `.env` | Every user adds their own in Settings (the `.env` key is ignored) |
+| Offline | Full PWA offline support | Needs a connection to open the vault |
+
+Firestore security rules (`firestore.rules`) let a signed-in user read and write only their own `users/{uid}` subtree.
+
+### Deploy your own (Firebase + Vercel)
+
+1. **Firebase** — create a project, add a Web app, then in the console:
+   - *Build → Firestore Database* → create a database (production mode).
+   - *Build → Authentication → Sign-in method* → enable **Email/Password** and **Google**.
+   - *Authentication → Settings → Authorised domains* → add your Vercel domain.
+2. **Rules** — `npx firebase-tools deploy --only firestore:rules --project <project-id>`
+3. **Vercel** — import the GitHub repo (framework: Vite) and add the four env vars from the Web app config:
+   `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`.
+   Do **not** set `VITE_GEMINI_API_KEY` on Vercel.
+
+`vercel.json` handles SPA routing, security headers and the popup-friendly `Cross-Origin-Opener-Policy` that Google sign-in needs.
+
+---
+
 ## 8. Single-Constant Rebranding Guide
 
 To rebrand the entire application (e.g. for an enterprise deployment or customized personal fork), modify only `src/constants/app.ts`:

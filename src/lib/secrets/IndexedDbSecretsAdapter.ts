@@ -1,6 +1,7 @@
 import { repository } from '@/data/repository';
 import { GoogleGenAI } from '@google/genai';
 import type { SecretsAdapter } from './types';
+import { CLOUD_MODE } from '@/lib/auth/firebase';
 
 export class IndexedDbSecretsAdapter implements SecretsAdapter {
   async getApiKey(): Promise<string | undefined> {
@@ -8,6 +9,9 @@ export class IndexedDbSecretsAdapter implements SecretsAdapter {
     if (stored && typeof stored === 'string' && stored.trim().length > 0) {
       return stored.trim();
     }
+    // Hosted website: every user brings their own key (stored in their private vault).
+    // The .env fallback is a convenience for local development only.
+    if (CLOUD_MODE) return undefined;
     const metaEnv = (import.meta as unknown as { env?: Record<string, string> }).env;
     const envKey = metaEnv?.VITE_GEMINI_API_KEY;
     if (envKey && typeof envKey === 'string' && envKey.trim().length > 0) {

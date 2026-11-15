@@ -1,18 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  Bot,
-  Send,
-  BrainCircuit,
-  Shield,
-  Clock,
-  ChevronDown,
-  ChevronUp,
-  Check,
-  X,
-  Sparkles,
-  RefreshCw,
-  Database,
-} from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowUp, ChevronDown, Check, X, Calculator, BookmarkPlus, ArrowUpRight } from 'lucide-react';
+import clsx from 'clsx';
 import { repository } from '@/data/repository';
 import { secretsAdapter } from '@/lib/secrets';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -20,137 +9,103 @@ import { requestQueue, type TodayUsageStats } from '@/lib/gemini/requestQueue';
 import { runAgentTurn } from '@/lib/gemini/agent/agentLoop';
 import type { ChatMessage, MemoryProposalRecord } from '@/lib/gemini/agent/types';
 import { MemoryManager } from './components/MemoryManager';
-import { APP_NAME } from '@/constants/app';
+import { BrandGlyph } from '@/components/brand/BrandMark';
 
 const SUGGESTED_PROMPTS = [
-  'Summarise this week',
-  'Where did I overspend this quarter?',
-  'Can I afford a ₹15,000 purchase?',
-  'What are my recurring monthly commitments?',
+  { q: 'Summarise this week', hint: 'Spend, top categories, anything unusual' },
+  { q: 'Where did I overspend this quarter?', hint: 'Compared with your budgets' },
+  { q: 'Can I afford a ₹15,000 purchase?', hint: 'Against this month’s pace' },
+  { q: 'What are my recurring monthly commitments?', hint: 'Rent, EMIs, subscriptions' },
 ];
 
-// Lightweight Markdown Formatter
-const MarkdownView: React.FC<{ content: string }> = ({ content }) => {
-  const lines = content.split('\n');
+const MISSING_KEY = '__missing_key__';
 
-  return (
-    <div className="space-y-2 text-xs sm:text-sm leading-relaxed">
-      {lines.map((line, idx) => {
-        const trimmed = line.trim();
-        if (!trimmed) {
-          return <div key={idx} className="h-1" />;
-        }
-
-        // Heading 3
-        if (trimmed.startsWith('### ')) {
-          return (
-            <h4 key={idx} className="font-bold text-sm sm:text-base text-deep-blue-950 dark:text-cream-50 mt-2">
-              {formatInline(trimmed.slice(4))}
-            </h4>
-          );
-        }
-
-        // Heading 2
-        if (trimmed.startsWith('## ')) {
-          return (
-            <h3 key={idx} className="font-bold text-base text-deep-blue-950 dark:text-cream-50 mt-3 pb-1 border-b border-cream-200 dark:border-dark-border">
-              {formatInline(trimmed.slice(3))}
-            </h3>
-          );
-        }
-
-        // Bullet point
-        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-          return (
-            <div key={idx} className="flex items-start gap-2 pl-2">
-              <span className="text-deep-blue-400 dark:text-cream-400 mt-1.5 w-1.5 h-1.5 rounded-full bg-deep-blue-500 dark:bg-cream-300 flex-shrink-0" />
-              <span>{formatInline(trimmed.slice(2))}</span>
-            </div>
-          );
-        }
-
-        // Numbered list
-        const numMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
-        if (numMatch) {
-          return (
-            <div key={idx} className="flex items-start gap-2 pl-2">
-              <span className="font-semibold text-deep-blue-700 dark:text-cream-300 flex-shrink-0">
-                {numMatch[1]}.
-              </span>
-              <span>{formatInline(numMatch[2] || '')}</span>
-            </div>
-          );
-        }
-
-        return <p key={idx}>{formatInline(trimmed)}</p>;
-      })}
-    </div>
-  );
-};
-
-// Inline bold/code parser
+// ── Lightweight Markdown renderer ──────────────────────────────────────────
 function formatInline(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
   const regex = /(\*\*.*?\*\*|`.*?`)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
-
   while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.substring(lastIndex, match.index));
-    }
+    if (match.index > lastIndex) parts.push(text.substring(lastIndex, match.index));
     const token = match[0];
-    if (token.startsWith('**') && token.endsWith('**')) {
+    if (token.startsWith('**')) {
       parts.push(
-        <strong key={match.index} className="font-semibold text-deep-blue-950 dark:text-cream-50">
+        <strong key={match.index} className="font-semibold text-deep-blue-950 dark:text-white">
           {token.slice(2, -2)}
         </strong>
       );
-    } else if (token.startsWith('`') && token.endsWith('`')) {
+    } else {
       parts.push(
-        <code
-          key={match.index}
-          className="px-1.5 py-0.5 rounded bg-cream-200/60 dark:bg-dark-elevated font-mono text-[11px] text-deep-blue-900 dark:text-cream-200"
-        >
+        <code key={match.index} className="px-1.5 py-0.5 rounded-md bg-deep-blue-50 dark:bg-white/[0.06] font-mono text-[12px]">
           {token.slice(1, -1)}
         </code>
       );
     }
     lastIndex = regex.lastIndex;
   }
-
-  if (lastIndex < text.length) {
-    parts.push(text.substring(lastIndex));
-  }
-
+  if (lastIndex < text.length) parts.push(text.substring(lastIndex));
   return parts;
 }
+
+const MarkdownView: React.FC<{ content: string }> = ({ content }) => (
+  <div className="space-y-2.5 text-[15px] leading-[1.7] text-deep-blue-950/80 dark:text-white/75">
+    {content.split('\n').map((line, idx) => {
+      const t = line.trim();
+      if (!t) return null;
+      if (t.startsWith('### ') || t.startsWith('## ')) {
+        return (
+          <h3 key={idx} className="pt-2 text-[15px] font-semibold text-deep-blue-950 dark:text-white">
+            {formatInline(t.replace(/^#+\s/, ''))}
+          </h3>
+        );
+      }
+      if (t.startsWith('- ') || t.startsWith('* ')) {
+        return (
+          <div key={idx} className="flex gap-3">
+            <span className="mt-[11px] w-1 h-1 rounded-full bg-current opacity-40 shrink-0" />
+            <span>{formatInline(t.slice(2))}</span>
+          </div>
+        );
+      }
+      const num = t.match(/^(\d+)\.\s+(.*)$/);
+      if (num) {
+        return (
+          <div key={idx} className="flex gap-3">
+            <span className="tabular-nums text-deep-blue-900/40 dark:text-white/35 shrink-0">{num[1]}.</span>
+            <span>{formatInline(num[2] || '')}</span>
+          </div>
+        );
+      }
+      return <p key={idx}>{formatInline(t)}</p>;
+    })}
+  </div>
+);
+
+const AssistantAvatar: React.FC = () => (
+  <span
+    aria-hidden="true"
+    className="grid place-items-center w-8 h-8 rounded-full shrink-0 bg-deep-blue-50 text-deep-blue-950 dark:bg-white/[0.06] dark:text-white ring-1 ring-inset ring-black/5 dark:ring-white/10"
+  >
+    <BrandGlyph size={15} />
+  </span>
+);
 
 export const AssistantPage: React.FC = () => {
   const { settings } = useSettingsStore();
   const [activeTab, setActiveTab] = useState<'chat' | 'memory'>('chat');
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      text: `Hello! I am your ${APP_NAME} quantitative financial strategist.
-I reason directly over your local IndexedDB ledger using code calculation tools (\`query_transactions\`, \`aggregate\`, \`compare_periods\`, \`get_budget_status\`).
-All calculations are deterministic and verified against your local records. How can I assist you?`,
-      timestamp: new Date().toISOString(),
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [usageStats, setUsageStats] = useState<TodayUsageStats | null>(null);
-  const [expandedToolIndex, setExpandedToolIndex] = useState<string | null>(null);
+  const [expandedTools, setExpandedTools] = useState<string | null>(null);
   const [proposalStatuses, setProposalStatuses] = useState<Record<string, 'pending' | 'approved' | 'rejected'>>({});
-
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const loadUsage = async () => {
     try {
-      const stats = await requestQueue.getTodayUsage();
-      setUsageStats(stats);
+      setUsageStats(await requestQueue.getTodayUsage());
     } catch (e) {
       console.warn('Failed to load quota stats:', e);
     }
@@ -163,47 +118,37 @@ All calculations are deterministic and verified against your local records. How 
   }, [settings.dailyAiBudgetHeavy, settings.dailyAiBudgetLight, settings.geminiHeavyModel, settings.geminiLightModel]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length) chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, isLoading]);
+
+  // Auto-grow composer
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [inputMessage]);
 
   const handleSend = async (userText: string) => {
     const trimmed = userText.trim();
     if (!trimmed || isLoading) return;
 
-    const userMsg: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      text: trimmed,
-      timestamp: new Date().toISOString(),
-    };
-
+    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', text: trimmed, timestamp: new Date().toISOString() };
     setMessages((prev) => [...prev, userMsg]);
     setInputMessage('');
     setIsLoading(true);
 
     try {
       const apiKey = (await secretsAdapter.getApiKey()) || settings.geminiApiKey || '';
-
       if (!apiKey) {
         setMessages((prev) => [
           ...prev,
-          {
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            text: `⚠️ **Gemini API Key Missing**: Please configure your Google AI Studio key in [Settings](/settings) to enable agentic chat with tool reasoning.`,
-            timestamp: new Date().toISOString(),
-          },
+          { id: crypto.randomUUID(), role: 'assistant', text: MISSING_KEY, timestamp: new Date().toISOString() },
         ]);
-        setIsLoading(false);
         return;
       }
 
-      // Convert prior conversation history
-      const history = messages.slice(-8).map((m) => ({
-        role: m.role,
-        text: m.text,
-      }));
-
+      const history = messages.slice(-8).map((m) => ({ role: m.role, text: m.text }));
       const result = await runAgentTurn(
         {
           userQuery: trimmed,
@@ -215,28 +160,26 @@ All calculations are deterministic and verified against your local records. How 
         repository
       );
 
-      const assistantMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        text: result.text,
-        timestamp: new Date().toISOString(),
-        toolExecutions: result.toolExecutions,
-        proposals: result.proposals,
-        modelUsed: result.modelUsed,
-      };
-
-      // Initialize proposal statuses
-      if (result.proposals && result.proposals.length > 0) {
+      if (result.proposals?.length) {
         setProposalStatuses((prev) => {
           const next = { ...prev };
-          for (const p of result.proposals) {
-            next[p.memoryId] = 'pending';
-          }
+          for (const p of result.proposals) next[p.memoryId] = 'pending';
           return next;
         });
       }
 
-      setMessages((prev) => [...prev, assistantMsg]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          text: result.text,
+          timestamp: new Date().toISOString(),
+          toolExecutions: result.toolExecutions,
+          proposals: result.proposals,
+          modelUsed: result.modelUsed,
+        },
+      ]);
       await loadUsage();
     } catch (err: unknown) {
       console.error('Agent error:', err);
@@ -246,7 +189,7 @@ All calculations are deterministic and verified against your local records. How 
         {
           id: crypto.randomUUID(),
           role: 'assistant',
-          text: `An error occurred while reasoning over your request: ${msg}`,
+          text: `I couldn’t finish that one. ${msg}`,
           timestamp: new Date().toISOString(),
         },
       ]);
@@ -273,311 +216,256 @@ All calculations are deterministic and verified against your local records. How 
     }
   };
 
-  const toggleToolExpand = (id: string) => {
-    setExpandedToolIndex((curr) => (curr === id ? null : id));
-  };
+  const used = usageStats?.lightCount ?? 0;
+  const limit = settings.dailyAiBudgetLight ?? 200;
+  const isEmpty = messages.length === 0;
 
   return (
-    <div className="space-y-6 animate-fadeIn max-w-5xl">
-      {/* Top Quota & Privacy Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle text-xs">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-deep-blue-500 text-cream-100 flex items-center justify-center font-bold">
-            <Bot className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="font-semibold text-deep-blue-900 dark:text-cream-100 flex items-center gap-2">
-              <span>Gemini Quantitative Agent</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-deep-blue-100 dark:bg-dark-elevated text-deep-blue-800 dark:text-cream-300 font-mono">
-                {settings.geminiLightModel}
-              </span>
-            </div>
-            <div className="text-deep-blue-700/70 dark:text-cream-400">
-              Deterministic calculations over local IndexedDB • Max 2 tool rounds
-            </div>
-          </div>
+    <div className="mx-auto w-full max-w-3xl flex flex-col min-h-[calc(100svh-10rem)] animate-fadeIn">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-4 pb-6">
+        <div role="tablist" aria-label="Assistant view" className="flex items-center p-1 rounded-xl bg-deep-blue-50/70 dark:bg-white/[0.04]">
+          {(['chat', 'memory'] as const).map((tab) => (
+            <button
+              key={tab}
+              role="tab"
+              aria-selected={activeTab === tab}
+              onClick={() => setActiveTab(tab)}
+              className={clsx(
+                'h-8 px-3.5 rounded-lg text-[13px] font-medium transition-colors',
+                activeTab === tab
+                  ? 'bg-white text-deep-blue-950 shadow-sm dark:bg-white/[0.1] dark:text-white dark:shadow-none'
+                  : 'text-deep-blue-900/50 hover:text-deep-blue-950 dark:text-white/45 dark:hover:text-white'
+              )}
+            >
+              {tab === 'chat' ? 'Chat' : 'Memory'}
+            </button>
+          ))}
         </div>
 
-        {/* Quota Meters & Privacy */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cream-100 dark:bg-dark-elevated text-deep-blue-800 dark:text-cream-200 font-medium">
-            <Shield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Privacy Mode: {settings.privacyMode ? 'Active' : 'Off'}</span>
-          </div>
-
-          <div
-            className="flex items-center gap-2 px-3 py-1 rounded-lg bg-cream-100 dark:bg-dark-elevated border border-cream-200 dark:border-dark-border font-mono text-[11px]"
-            title="Daily request meter for light & heavy models"
-          >
-            <Clock className="w-3.5 h-3.5 text-deep-blue-600 dark:text-cream-300" />
-            <span>
-              Light: {usageStats?.lightCount ?? 0}/{settings.dailyAiBudgetLight ?? 200}
-            </span>
-            <span className="text-deep-blue-300 dark:text-cream-500">•</span>
-            <span>
-              Heavy: {usageStats?.heavyCount ?? 0}/{settings.dailyAiBudgetHeavy ?? 20}
-            </span>
-          </div>
-
-          {/* View Tab Switcher */}
-          <div className="flex items-center p-0.5 rounded-lg bg-cream-200/70 dark:bg-dark-elevated border border-cream-300 dark:border-dark-border">
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-                activeTab === 'chat'
-                  ? 'bg-white dark:bg-dark-surface text-deep-blue-900 dark:text-cream-100 shadow-sm'
-                  : 'text-deep-blue-700 dark:text-cream-300 hover:text-deep-blue-900'
-              }`}
-            >
-              Chat
-            </button>
-            <button
-              onClick={() => setActiveTab('memory')}
-              className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-                activeTab === 'memory'
-                  ? 'bg-white dark:bg-dark-surface text-deep-blue-900 dark:text-cream-100 shadow-sm'
-                  : 'text-deep-blue-700 dark:text-cream-300 hover:text-deep-blue-900'
-              }`}
-            >
-              <BrainCircuit className="w-3 h-3" />
-              <span>Memory Vault</span>
-            </button>
-          </div>
+        <div
+          className="flex items-center gap-2 text-[12px] text-deep-blue-900/45 dark:text-white/35"
+          title={`Model: ${settings.geminiLightModel} · ${used} of ${limit} requests used today`}
+        >
+          <span
+            className={clsx('w-1.5 h-1.5 rounded-full', settings.privacyMode ? 'bg-emerald-500 dark:bg-sky-400' : 'bg-amber-400')}
+            aria-hidden="true"
+          />
+          <span>{settings.privacyMode ? 'Private mode' : 'Private mode off'}</span>
+          <span className="hidden sm:inline opacity-50">·</span>
+          <span className="hidden sm:inline tabular-nums">{Math.max(0, limit - used)} questions left today</span>
         </div>
       </div>
 
       {activeTab === 'memory' ? (
         <MemoryManager onMemoryChanged={loadUsage} />
       ) : (
-        /* Chat View */
-        <div className="flex flex-col h-[650px] rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle overflow-hidden">
-          {/* Messages list */}
-          <div className="flex-1 p-5 overflow-y-auto space-y-5">
-            {messages.map((m) => {
-              const isUser = m.role === 'user';
+        <>
+          {/* Conversation */}
+          <div className="flex-1">
+            {isEmpty ? (
+              <div className="pt-10 sm:pt-16 pb-10">
+                <h2 className="font-display text-[44px] sm:text-[56px] leading-[0.95] tracking-[-0.01em] text-deep-blue-950 dark:text-white">
+                  Ask anything about
+                  <br />
+                  <em>your money.</em>
+                </h2>
+                <p className="mt-5 max-w-md text-[15px] leading-relaxed text-deep-blue-900/55 dark:text-white/45">
+                  Answers are calculated from your own ledger. Private mode strips names and identifiers before anything leaves
+                  this device.
+                </p>
 
-              return (
-                <div
-                  key={m.id}
-                  className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
-                >
-                  {!isUser && (
-                    <div className="w-8 h-8 rounded-full bg-deep-blue-500 text-cream-100 flex items-center justify-center flex-shrink-0 text-xs font-bold shadow-sm">
-                      AI
-                    </div>
-                  )}
-
-                  <div className={`space-y-2 max-w-2xl ${isUser ? 'items-end' : 'items-start'}`}>
-                    {/* Tool execution badges (above assistant response) */}
-                    {!isUser && m.toolExecutions && m.toolExecutions.length > 0 && (
-                      <div className="space-y-1.5 mb-2">
-                        {m.toolExecutions.map((tool, tIdx) => {
-                          const toolKey = `${m.id}-tool-${tIdx}`;
-                          const isExpanded = expandedToolIndex === toolKey;
-
-                          return (
-                            <div
-                              key={toolKey}
-                              className="text-[11px] rounded-lg border border-cream-200 dark:border-dark-border bg-cream-50/80 dark:bg-dark-elevated/80 overflow-hidden"
-                            >
-                              <button
-                                type="button"
-                                onClick={() => toggleToolExpand(toolKey)}
-                                className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-cream-100/60 dark:hover:bg-dark-elevated text-deep-blue-800 dark:text-cream-200 text-left transition-colors font-mono"
-                              >
-                                <div className="flex items-center gap-1.5 truncate">
-                                  <Database className="w-3 h-3 text-deep-blue-600 dark:text-cream-300 flex-shrink-0" />
-                                  <span className="font-semibold">Tool: {tool.name}()</span>
-                                  <span className="text-deep-blue-500 dark:text-cream-400 text-[10px] truncate">
-                                    {JSON.stringify(tool.args)}
-                                  </span>
-                                </div>
-                                {isExpanded ? (
-                                  <ChevronUp className="w-3.5 h-3.5 flex-shrink-0" />
-                                ) : (
-                                  <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />
-                                )}
-                              </button>
-
-                              {isExpanded && (
-                                <div className="p-2.5 bg-white dark:bg-dark-surface border-t border-cream-200 dark:border-dark-border text-[10px] font-mono overflow-x-auto space-y-2">
-                                  <div>
-                                    <div className="font-bold text-deep-blue-700 dark:text-cream-300">
-                                      Inputs:
-                                    </div>
-                                    <pre className="text-deep-blue-900 dark:text-cream-200 whitespace-pre-wrap">
-                                      {JSON.stringify(tool.args, null, 2)}
-                                    </pre>
-                                  </div>
-                                  <div>
-                                    <div className="font-bold text-deep-blue-700 dark:text-cream-300">
-                                      Verified Output:
-                                    </div>
-                                    <pre className="text-deep-blue-900 dark:text-cream-200 whitespace-pre-wrap">
-                                      {JSON.stringify(tool.result, null, 2)}
-                                    </pre>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Chat Bubble */}
-                    <div
-                      className={`p-4 rounded-2xl text-xs sm:text-sm leading-relaxed ${
-                        isUser
-                          ? 'bg-deep-blue-500 text-cream-100 rounded-br-none shadow-sm'
-                          : 'bg-cream-50 dark:bg-dark-elevated text-deep-blue-900 dark:text-cream-100 border border-cream-200 dark:border-dark-border rounded-bl-none shadow-subtle'
-                      }`}
+                <div className="mt-10 grid sm:grid-cols-2 gap-2">
+                  {SUGGESTED_PROMPTS.map(({ q, hint }) => (
+                    <button
+                      key={q}
+                      onClick={() => handleSend(q)}
+                      className="group text-left p-4 rounded-2xl border border-cream-200 dark:border-white/[0.07] bg-white dark:bg-white/[0.015] hover:bg-deep-blue-50/40 dark:hover:bg-white/[0.04] hover:border-cream-300 dark:hover:border-white/[0.12] transition-colors"
                     >
-                      {isUser ? m.text : <MarkdownView content={m.text} />}
-                    </div>
+                      <span className="flex items-start justify-between gap-3">
+                        <span className="text-[14px] font-medium text-deep-blue-950 dark:text-white/90">{q}</span>
+                        <ArrowUpRight
+                          className="w-4 h-4 shrink-0 text-deep-blue-900/25 dark:text-white/20 group-hover:text-deep-blue-950 dark:group-hover:text-white transition-colors"
+                          strokeWidth={1.75}
+                        />
+                      </span>
+                      <span className="mt-1 block text-[12px] text-deep-blue-900/45 dark:text-white/35">{hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <ol className="space-y-8 pb-8" aria-live="polite">
+                {messages.map((m) => {
+                  if (m.role === 'user') {
+                    return (
+                      <li key={m.id} className="flex justify-end">
+                        <div className="max-w-[80%] px-4 py-2.5 rounded-2xl rounded-br-md bg-deep-blue-950 text-white dark:bg-white/[0.08] dark:text-white text-[15px] leading-relaxed">
+                          {m.text}
+                        </div>
+                      </li>
+                    );
+                  }
 
-                    {/* Interactive Memory Proposal Cards */}
-                    {!isUser && m.proposals && m.proposals.length > 0 && (
-                      <div className="space-y-2 pt-1 w-full">
-                        {m.proposals.map((proposal) => {
+                  const toolsOpen = expandedTools === m.id;
+                  return (
+                    <li key={m.id} className="flex gap-4">
+                      <AssistantAvatar />
+                      <div className="flex-1 min-w-0 pt-1 space-y-3">
+                        {m.text === MISSING_KEY ? (
+                          <div className="text-[15px] leading-relaxed text-deep-blue-950/80 dark:text-white/75">
+                            <p>To answer questions I need a Gemini API key. It stays on this device.</p>
+                            <Link
+                              to="/app/settings"
+                              className="mt-3 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-[13px] font-medium bg-deep-blue-950 text-white dark:bg-white dark:text-black"
+                            >
+                              Add your key in Settings
+                              <ArrowUpRight className="w-3.5 h-3.5" />
+                            </Link>
+                          </div>
+                        ) : (
+                          <MarkdownView content={m.text} />
+                        )}
+
+                        {m.toolExecutions && m.toolExecutions.length > 0 && (
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => setExpandedTools(toolsOpen ? null : m.id)}
+                              aria-expanded={toolsOpen}
+                              className="inline-flex items-center gap-1.5 text-[12px] text-deep-blue-900/45 hover:text-deep-blue-950 dark:text-white/35 dark:hover:text-white transition-colors"
+                            >
+                              <Calculator className="w-3.5 h-3.5" strokeWidth={1.75} />
+                              Checked against {m.toolExecutions.length}{' '}
+                              {m.toolExecutions.length === 1 ? 'calculation' : 'calculations'}
+                              <ChevronDown className={clsx('w-3.5 h-3.5 transition-transform', toolsOpen && 'rotate-180')} />
+                            </button>
+                            {toolsOpen && (
+                              <div className="mt-3 space-y-2">
+                                {m.toolExecutions.map((tool, i) => (
+                                  <details
+                                    key={i}
+                                    className="rounded-xl border border-cream-200 dark:border-white/[0.07] bg-white dark:bg-white/[0.02] text-[12px]"
+                                  >
+                                    <summary className="cursor-pointer list-none px-3 py-2 font-mono text-deep-blue-900/70 dark:text-white/55 [&::-webkit-details-marker]:hidden">
+                                      {tool.name.replace(/_/g, ' ')}
+                                    </summary>
+                                    <pre className="px-3 pb-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-all text-deep-blue-900/60 dark:text-white/45 max-h-64 overflow-auto">
+                                      {JSON.stringify({ input: tool.args, output: tool.result }, null, 2)}
+                                    </pre>
+                                  </details>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {m.proposals?.map((proposal) => {
                           const status = proposalStatuses[proposal.memoryId] || 'pending';
-
                           return (
                             <div
                               key={proposal.memoryId}
-                              className="p-3.5 rounded-xl border border-amber-300/80 bg-amber-50/60 dark:bg-dark-elevated dark:border-amber-500/40 text-xs space-y-2 animate-fadeIn"
+                              className="rounded-2xl border border-cream-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.02] p-4 animate-fadeIn"
                             >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5 font-semibold text-amber-900 dark:text-amber-300">
-                                  <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                                  <span>Proposed Memory Confirmation</span>
-                                  <span className="font-mono uppercase text-[10px] px-1.5 py-0.5 rounded bg-amber-200/50 dark:bg-dark-surface text-amber-900 dark:text-amber-300">
-                                    {proposal.kind.replace('_', ' ')}
-                                  </span>
-                                </div>
-
-                                <span className="text-[11px] font-medium text-amber-800/80 dark:text-amber-400">
-                                  Requires Your Approval
-                                </span>
-                              </div>
-
-                              <p className="text-deep-blue-950 dark:text-cream-100 font-medium bg-white/70 dark:bg-dark-surface/70 p-2 rounded-lg border border-amber-200/50 dark:border-dark-border">
-                                {proposal.text}
+                              <p className="flex items-center gap-2 text-[12px] text-deep-blue-900/45 dark:text-white/40">
+                                <BookmarkPlus className="w-3.5 h-3.5" strokeWidth={1.75} />
+                                Remember this for next time?
                               </p>
-
-                              <div className="flex items-center justify-between pt-1">
-                                <span className="text-[11px] text-deep-blue-600 dark:text-cream-400">
-                                  Will be stored in long-term memory for future queries.
-                                </span>
-
-                                <div className="flex items-center gap-2">
-                                  {status === 'pending' ? (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleApproveProposal(proposal)}
-                                        className="flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-cream-100 font-semibold transition-colors shadow-sm"
-                                      >
-                                        <Check className="w-3.5 h-3.5" />
-                                        <span>Approve</span>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleRejectProposal(proposal)}
-                                        className="flex items-center gap-1 px-3 py-1 rounded-lg bg-status-danger hover:bg-red-700 text-cream-100 font-semibold transition-colors shadow-sm"
-                                      >
-                                        <X className="w-3.5 h-3.5" />
-                                        <span>Reject</span>
-                                      </button>
-                                    </>
-                                  ) : status === 'approved' ? (
-                                    <span className="px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-dark-surface text-emerald-800 dark:text-emerald-400 font-bold flex items-center gap-1">
-                                      <Check className="w-3.5 h-3.5" />
-                                      <span>Saved to Memory Vault</span>
-                                    </span>
-                                  ) : (
-                                    <span className="px-2.5 py-1 rounded-lg bg-red-100 dark:bg-dark-surface text-status-danger font-bold flex items-center gap-1">
-                                      <X className="w-3.5 h-3.5" />
-                                      <span>Rejected</span>
-                                    </span>
-                                  )}
-                                </div>
+                              <p className="mt-2 text-[14px] text-deep-blue-950 dark:text-white/90">{proposal.text}</p>
+                              <div className="mt-3 flex items-center gap-2">
+                                {status === 'pending' ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleApproveProposal(proposal)}
+                                      className="h-8 px-3 rounded-lg text-[13px] font-medium bg-deep-blue-950 text-white dark:bg-white dark:text-black"
+                                    >
+                                      Remember
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRejectProposal(proposal)}
+                                      className="h-8 px-3 rounded-lg text-[13px] text-deep-blue-900/55 hover:text-deep-blue-950 dark:text-white/45 dark:hover:text-white hover:bg-deep-blue-50/60 dark:hover:bg-white/[0.05]"
+                                    >
+                                      Not now
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5 text-[13px] text-deep-blue-900/55 dark:text-white/45">
+                                    {status === 'approved' ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+                                    {status === 'approved' ? 'Saved to memory' : 'Dismissed'}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           );
                         })}
                       </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                    </li>
+                  );
+                })}
 
-            {isLoading && (
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-deep-blue-500 text-cream-100 flex items-center justify-center flex-shrink-0 text-xs font-bold">
-                  AI
-                </div>
-                <div className="p-3.5 rounded-2xl bg-cream-50 dark:bg-dark-elevated border border-cream-200 dark:border-dark-border text-xs text-deep-blue-700 dark:text-cream-300 flex items-center gap-2">
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-deep-blue-600 dark:text-cream-300" />
-                  <span>Executing code tools & synthesizing quantitative answer...</span>
-                </div>
-              </div>
+                {isLoading && (
+                  <li className="flex gap-4" role="status" aria-label="Assistant is thinking">
+                    <AssistantAvatar />
+                    <div className="flex items-center gap-1.5 pt-3">
+                      {[0, 1, 2].map((i) => (
+                        <span
+                          key={i}
+                          className="w-1.5 h-1.5 rounded-full bg-deep-blue-900/40 dark:bg-white/40 animate-pulse"
+                          style={{ animationDelay: `${i * 160}ms` }}
+                        />
+                      ))}
+                    </div>
+                  </li>
+                )}
+                <div ref={chatEndRef} />
+              </ol>
             )}
-
-            <div ref={chatEndRef} />
           </div>
 
-          {/* Suggested Prompts */}
-          <div className="px-5 py-2.5 bg-cream-50/70 dark:bg-dark-elevated/40 border-t border-cream-100 dark:border-dark-border flex items-center gap-2 overflow-x-auto">
-            <span className="text-[11px] font-semibold text-deep-blue-700/70 dark:text-cream-400 flex-shrink-0">
-              Suggestions:
-            </span>
-            {SUGGESTED_PROMPTS.map((p) => (
-              <button
-                key={p}
-                onClick={() => handleSend(p)}
-                disabled={isLoading}
-                className="px-3 py-1 rounded-full text-xs bg-white dark:bg-dark-surface hover:bg-cream-100 dark:hover:bg-dark-border text-deep-blue-800 dark:text-cream-200 border border-cream-200 dark:border-dark-border transition-colors flex-shrink-0 disabled:opacity-50"
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-
-          {/* Input Box & Legal Footnote */}
-          <div className="p-4 border-t border-cream-200 dark:border-dark-border bg-white dark:bg-dark-surface space-y-2">
+          {/* Composer */}
+          <div className="sticky bottom-20 md:bottom-6 pt-4">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSend(inputMessage);
               }}
-              className="flex items-center gap-2"
+              className="flex items-end gap-2 p-2 pl-4 rounded-[22px] border border-cream-200 dark:border-white/[0.1] bg-white/90 dark:bg-[#141516]/90 backdrop-blur-xl shadow-[0_20px_60px_-20px_rgba(0,0,0,0.25)] dark:shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] focus-within:border-deep-blue-300 dark:focus-within:border-white/20 transition-colors"
             >
-              <input
-                type="text"
+              <label htmlFor="assistant-input" className="sr-only">
+                Ask the assistant
+              </label>
+              <textarea
+                id="assistant-input"
+                ref={inputRef}
+                rows={1}
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Ask about spending, budgets, commitments, or what you can afford..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend(inputMessage);
+                  }
+                }}
+                placeholder="Ask about spending, budgets or what you can afford…"
                 disabled={isLoading}
-                className="flex-1 px-4 py-2.5 text-xs sm:text-sm rounded-xl bg-cream-50 dark:bg-dark-elevated border border-cream-200 dark:border-dark-border text-deep-blue-900 dark:text-cream-100 placeholder:text-deep-blue-400/60 focus:outline-none focus:ring-2 focus:ring-deep-blue-400"
+                className="flex-1 resize-none bg-transparent py-2 text-[15px] leading-6 text-deep-blue-950 dark:text-white placeholder:text-deep-blue-900/35 dark:placeholder:text-white/30 focus:outline-none focus-visible:outline-none"
               />
               <button
                 type="submit"
                 disabled={!inputMessage.trim() || isLoading}
-                aria-label="Send message to assistant"
-                title="Send message"
-                className="p-2.5 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 disabled:opacity-40 text-cream-100 transition-colors shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
+                aria-label="Send"
+                className="grid place-items-center w-9 h-9 rounded-full shrink-0 bg-deep-blue-950 text-white dark:bg-white dark:text-black disabled:opacity-25 transition-opacity"
               >
-                <Send className="w-4 h-4" />
+                <ArrowUp className="w-4 h-4" strokeWidth={2.25} />
               </button>
             </form>
-
-            <div className="text-[10px] text-center text-deep-blue-600/70 dark:text-cream-400">
-              * LedgerLite Assistant calculations are computed deterministically from your local transactions and do not constitute formal financial advice.
-            </div>
+            <p className="mt-2.5 text-center text-[11px] text-deep-blue-900/35 dark:text-white/25">
+              Calculated from your ledger. Not financial advice.
+            </p>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

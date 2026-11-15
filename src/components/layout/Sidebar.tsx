@@ -1,187 +1,229 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   ArrowLeftRight,
   PieChart,
   FileBarChart,
-  Bot,
+  MessageSquareText,
   Settings,
-  ChevronLeft,
-  ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
-  ShieldCheck,
-  Sparkles,
+  LogOut,
+  type LucideIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { APP_NAME, APP_TAGLINE } from '@/constants/app';
 import { useUiStore } from '@/store/uiStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useAuth } from '@/lib/auth/AuthProvider';
+import { BrandGlyph } from '@/components/brand/BrandMark';
+import { CLOUD_MODE } from '@/lib/auth/firebase';
+
+type SyncState = 'idle' | 'syncing' | 'error';
+
+function useSyncState(): SyncState {
+  const [state, setState] = useState<SyncState>('idle');
+  useEffect(() => {
+    if (!CLOUD_MODE) return;
+    let unsub: (() => void) | undefined;
+    let alive = true;
+    import('@/data/cloud/cloudVault').then((m) => {
+      if (!alive) return;
+      setState(m.getSyncState());
+      unsub = m.onSyncStateChange(setState);
+    });
+    return () => {
+      alive = false;
+      unsub?.();
+    };
+  }, []);
+  return state;
+}
 
 interface NavItem {
   to: string;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: string;
+  icon: LucideIcon;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
-  { to: '/budgets', label: 'Budgets', icon: PieChart },
-  { to: '/reports', label: 'Reports', icon: FileBarChart },
-  { to: '/assistant', label: 'AI Assistant', icon: Bot, badge: 'Gemini' },
-  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/app', label: 'Overview', icon: LayoutDashboard },
+  { to: '/app/transactions', label: 'Transactions', icon: ArrowLeftRight },
+  { to: '/app/budgets', label: 'Budgets', icon: PieChart },
+  { to: '/app/reports', label: 'Reports', icon: FileBarChart },
+  { to: '/app/assistant', label: 'Assistant', icon: MessageSquareText },
 ];
 
+const navClass =
+  (collapsed: boolean) =>
+  ({ isActive }: { isActive: boolean }) =>
+    clsx(
+      'group relative flex items-center gap-3 h-10 rounded-xl text-[14px] transition-colors',
+      collapsed ? 'justify-center px-0' : 'px-3',
+      isActive
+        ? 'bg-deep-blue-50 text-deep-blue-950 dark:bg-white/[0.06] dark:text-white font-medium'
+        : 'text-deep-blue-900/60 hover:text-deep-blue-950 hover:bg-deep-blue-50/60 dark:text-white/50 dark:hover:text-white dark:hover:bg-white/[0.03]'
+    );
+
 export const Sidebar: React.FC = () => {
-  const { isSidebarCollapsed, toggleSidebar, openQuickAdd } = useUiStore();
+  const { isSidebarCollapsed: collapsed, toggleSidebar, openQuickAdd } = useUiStore();
   const { settings } = useSettingsStore();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const displayName = user?.displayName || user?.email?.split('@')[0] || 'You';
+  const initials = displayName.slice(0, 2).toUpperCase();
+  const sync = useSyncState();
+  const statusLabel = CLOUD_MODE
+    ? sync === 'syncing'
+      ? 'Syncing…'
+      : sync === 'error'
+        ? 'Sync paused — retrying'
+        : 'Synced to cloud'
+    : settings.storagePersisted
+      ? 'Vault persisted on device'
+      : 'Stored on this device';
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/', { replace: true });
+  };
+
+  const renderItem = (item: NavItem, end = false) => {
+    const Icon = item.icon;
+    return (
+      <NavLink key={item.to} to={item.to} end={end} className={navClass(collapsed)} title={collapsed ? item.label : undefined}>
+        {({ isActive }) => (
+          <>
+            {isActive && (
+              <span
+                aria-hidden="true"
+                className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-deep-blue-500 dark:bg-sky-400"
+              />
+            )}
+            <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
+            {!collapsed && <span className="truncate">{item.label}</span>}
+          </>
+        )}
+      </NavLink>
+    );
+  };
 
   return (
     <aside
       className={clsx(
-        'hidden md:flex flex-col bg-cream-50 dark:bg-dark-surface border-r border-cream-200 dark:border-dark-border h-screen sticky top-0 transition-all duration-300 z-30 select-none',
-        isSidebarCollapsed ? 'w-20' : 'w-64'
+        'hidden md:flex flex-col h-screen sticky top-0 z-30 select-none transition-[width] duration-300',
+        'bg-cream-50 dark:bg-dark-bg border-r border-cream-200 dark:border-white/[0.06]',
+        collapsed ? 'w-[76px]' : 'w-[248px]'
       )}
     >
-      {/* Brand Header */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-cream-200 dark:border-dark-border">
-        <div
-          className={clsx(
-            'flex items-center gap-3 overflow-hidden transition-all',
-            isSidebarCollapsed ? 'justify-center w-full' : ''
-          )}
+      {/* Brand */}
+      <div className={clsx('h-16 flex items-center', collapsed ? 'justify-center' : 'justify-between pl-5 pr-3')}>
+        <NavLink
+          to="/app"
+          className="flex items-center gap-2.5 rounded-lg text-deep-blue-950 dark:text-white"
+          aria-label="LedgerLite overview"
         >
-          <div className="w-10 h-10 rounded-xl bg-deep-blue-500 text-cream-100 flex items-center justify-center font-bold text-lg shadow-sm flex-shrink-0">
-            {APP_NAME.charAt(0)}
-          </div>
-
-          {!isSidebarCollapsed && (
-            <div className="flex flex-col overflow-hidden">
-              <span className="font-bold text-deep-blue-900 dark:text-cream-100 tracking-tight text-base truncate">
-                {APP_NAME}
-              </span>
-              <span className="text-[10px] tracking-wider uppercase text-deep-blue-600/70 dark:text-cream-300 truncate">
-                {APP_TAGLINE}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {!isSidebarCollapsed && (
+          <BrandGlyph size={24} />
+          {!collapsed && <span className="font-semibold tracking-[-0.02em] text-[15px]">LedgerLite</span>}
+        </NavLink>
+        {!collapsed && (
           <button
             onClick={toggleSidebar}
-            title="Collapse Sidebar"
-            aria-label="Collapse Sidebar"
-            className="p-1.5 rounded-lg text-deep-blue-700 hover:text-deep-blue-950 dark:text-cream-300 hover:bg-cream-200/60 dark:hover:bg-dark-elevated transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar"
+            className="p-2 rounded-lg text-deep-blue-900/40 hover:text-deep-blue-950 dark:text-white/30 dark:hover:text-white hover:bg-deep-blue-50/60 dark:hover:bg-white/[0.04] transition-colors"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <PanelLeftClose className="w-4 h-4" strokeWidth={1.75} />
           </button>
         )}
       </div>
 
-      {/* Quick Add Action Button */}
-      <div className="p-3">
+      {/* Primary action */}
+      <div className="px-4 pt-2 pb-5">
         <button
           onClick={openQuickAdd}
-          aria-label="Log Expense (shortcut N)"
+          aria-label="Log expense (shortcut N)"
+          title="Log expense (N)"
           className={clsx(
-            'w-full flex items-center justify-center gap-2 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 py-2.5 font-medium shadow-sm transition-all text-sm group focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500 focus-visible:ring-offset-2',
-            isSidebarCollapsed ? 'px-0' : 'px-4'
+            'group w-full h-10 flex items-center gap-2 rounded-xl text-[14px] font-medium transition-colors',
+            'bg-deep-blue-950 text-white hover:bg-deep-blue-900 dark:bg-white dark:text-black dark:hover:bg-cream-200',
+            collapsed ? 'justify-center' : 'pl-3 pr-2'
           )}
-          title="Quick Add Expense (Press N)"
         >
-          <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 duration-200" />
-          {!isSidebarCollapsed && (
-            <div className="flex items-center justify-between flex-1">
-              <span>Log Expense</span>
-              <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-[10px] uppercase font-mono rounded bg-deep-blue-700 text-cream-200">
+          <Plus className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" strokeWidth={2} />
+          {!collapsed && (
+            <>
+              <span className="flex-1 text-left">Log expense</span>
+              <kbd className="grid place-items-center w-6 h-6 rounded-md text-[11px] font-mono bg-white/10 dark:bg-black/[0.07] text-white/60 dark:text-black/50">
                 N
               </kbd>
-            </div>
+            </>
           )}
         </button>
       </div>
 
-      {/* Navigation Links */}
-      <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                clsx(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all',
-                  isActive
-                    ? 'bg-deep-blue-500 text-cream-100 shadow-sm'
-                    : 'text-deep-blue-800/80 hover:text-deep-blue-950 hover:bg-cream-200/60 dark:text-cream-200 dark:hover:bg-dark-elevated',
-                  isSidebarCollapsed && 'justify-center px-0'
-                )
-              }
-              title={isSidebarCollapsed ? item.label : undefined}
-            >
-              {({ isActive }) => (
-                <>
-                  <Icon
-                    className={clsx(
-                      'w-5 h-5 flex-shrink-0',
-                      isActive ? 'text-cream-100' : 'text-deep-blue-600 dark:text-cream-300'
-                    )}
-                  />
-                  {!isSidebarCollapsed && (
-                    <div className="flex items-center justify-between flex-1 truncate">
-                      <span className="truncate">{item.label}</span>
-                      {item.badge && (
-                        <span
-                          className={clsx(
-                            'text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-1',
-                            isActive
-                              ? 'bg-deep-blue-700 text-cream-100'
-                              : 'bg-sky-100 text-deep-blue-700 dark:bg-dark-elevated dark:text-cream-300'
-                          )}
-                        >
-                          <Sparkles className="w-2.5 h-2.5" />
-                          {item.badge}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-            </NavLink>
-          );
-        })}
+      {/* Navigation */}
+      <nav aria-label="Main" className="flex-1 px-3 overflow-y-auto">
+        {!collapsed && <p className="px-3 pb-2 label-mono !text-[10px] text-deep-blue-900/35 dark:text-white/25">Workspace</p>}
+        <div className="space-y-0.5">{NAV_ITEMS.map((item) => renderItem(item, item.to === '/app'))}</div>
       </nav>
 
-      {/* Footer Info & Storage Status */}
-      <div className="p-3 border-t border-cream-200 dark:border-dark-border space-y-2">
-        {!isSidebarCollapsed ? (
-          <div className="p-2.5 rounded-xl bg-white/70 dark:bg-dark-elevated border border-cream-200 dark:border-dark-border text-xs space-y-1">
-            <div className="flex items-center justify-between text-deep-blue-900 dark:text-cream-100 font-medium">
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                Local-First Storage
-              </span>
-              <span className="text-[10px] px-1 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-mono">
-                {settings.storagePersisted ? 'Persisted' : 'IndexedDB'}
-              </span>
-            </div>
-            <p className="text-[11px] text-deep-blue-600/70 dark:text-cream-400 leading-tight">
-              100% private. Stored on device.
-            </p>
-          </div>
-        ) : (
+      {/* Footer */}
+      <div className="px-3 pb-4 pt-3 space-y-0.5">
+        {renderItem({ to: '/app/settings', label: 'Settings', icon: Settings })}
+        {collapsed && (
           <button
             onClick={toggleSidebar}
-            title="Expand Sidebar"
-            aria-label="Expand Sidebar"
-            className="w-full flex justify-center p-2 rounded-xl text-deep-blue-700 hover:text-deep-blue-950 dark:text-cream-300 hover:bg-cream-200/60 dark:hover:bg-dark-elevated transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500"
+            aria-label="Expand sidebar"
+            title="Expand sidebar"
+            className="w-full h-10 grid place-items-center rounded-xl text-deep-blue-900/50 dark:text-white/40 hover:text-deep-blue-950 dark:hover:text-white hover:bg-deep-blue-50/60 dark:hover:bg-white/[0.03] transition-colors"
           >
-            <ChevronRight className="w-5 h-5" />
+            <PanelLeftOpen className="w-[18px] h-[18px]" strokeWidth={1.75} />
           </button>
+        )}
+
+        {user && (
+          <div
+            className={clsx(
+              'mt-3 pt-3 border-t border-cream-200 dark:border-white/[0.06] flex items-center gap-3',
+              collapsed ? 'flex-col' : 'px-2'
+            )}
+          >
+            {user.photoURL ? (
+              <img src={user.photoURL} alt="" referrerPolicy="no-referrer" className="w-8 h-8 rounded-full object-cover shrink-0" />
+            ) : (
+              <span
+                aria-hidden="true"
+                className="w-8 h-8 rounded-full grid place-items-center shrink-0 text-[11px] font-semibold bg-deep-blue-100 text-deep-blue-900 dark:bg-white/[0.08] dark:text-white/80 ring-1 ring-inset ring-black/5 dark:ring-white/10"
+              >
+                {initials}
+              </span>
+            )}
+            {!collapsed && (
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-medium text-deep-blue-950 dark:text-white truncate">{displayName}</p>
+                <p className="text-[11px] text-deep-blue-900/45 dark:text-white/35 truncate flex items-center gap-1.5">
+                  <span
+                    className={clsx(
+                      'w-1.5 h-1.5 rounded-full shrink-0',
+                      sync === 'error' ? 'bg-amber-400' : sync === 'syncing' ? 'bg-white/50 animate-pulse' : 'bg-emerald-500 dark:bg-sky-400'
+                    )}
+                    aria-hidden="true"
+                  />
+                  <span aria-live="polite">{statusLabel}</span>
+                </p>
+              </div>
+            )}
+            <button
+              onClick={handleSignOut}
+              title="Sign out"
+              aria-label="Sign out"
+              className="p-2 rounded-lg text-deep-blue-900/40 dark:text-white/35 hover:text-deep-blue-950 dark:hover:text-white hover:bg-deep-blue-50/60 dark:hover:bg-white/[0.04] transition-colors"
+            >
+              <LogOut className="w-4 h-4" strokeWidth={1.75} />
+            </button>
+          </div>
         )}
       </div>
     </aside>

@@ -2,10 +2,10 @@ import { Category } from '@/types';
 
 export const DEFAULT_CATEGORIES: Category[] = [
   // 1. Housing (Need)
-  { id: 'cat_housing', name: 'Housing', parentId: null, type: 'need', color: '#16587B', icon: 'Home', order: 1 },
-  { id: 'sub_rent', name: 'House Rent', parentId: 'cat_housing', type: 'need', color: '#16587B', icon: 'Key', order: 1 },
-  { id: 'sub_maintenance', name: 'Society & Maintenance', parentId: 'cat_housing', type: 'need', color: '#1E6B94', icon: 'Building', order: 2 },
-  { id: 'sub_home_repair', name: 'Repairs & Upkeep', parentId: 'cat_housing', type: 'need', color: '#2C80AD', icon: 'Wrench', order: 3 },
+  { id: 'cat_housing', name: 'Housing', parentId: null, type: 'need', color: '#847DFF', icon: 'Home', order: 1 },
+  { id: 'sub_rent', name: 'House Rent', parentId: 'cat_housing', type: 'need', color: '#847DFF', icon: 'Key', order: 1 },
+  { id: 'sub_maintenance', name: 'Society & Maintenance', parentId: 'cat_housing', type: 'need', color: '#9C96FF', icon: 'Building', order: 2 },
+  { id: 'sub_home_repair', name: 'Repairs & Upkeep', parentId: 'cat_housing', type: 'need', color: '#B4AFFF', icon: 'Wrench', order: 3 },
 
   // 2. Food & Dining (Want)
   { id: 'cat_food_dining', name: 'Food & Dining', parentId: null, type: 'want', color: '#C05621', icon: 'Utensils', order: 2 },
@@ -27,10 +27,10 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'sub_vehicle_service', name: 'Service & Parking', parentId: 'cat_transport', type: 'need', color: '#63B3ED', icon: 'Wrench', order: 4 },
 
   // 5. Utilities & Bills (Need)
-  { id: 'cat_utilities', name: 'Utilities & Bills', parentId: null, type: 'need', color: '#84B3CE', icon: 'Zap', order: 5 },
+  { id: 'cat_utilities', name: 'Utilities & Bills', parentId: null, type: 'need', color: '#00B3DD', icon: 'Zap', order: 5 },
   { id: 'sub_electricity', name: 'Electricity', parentId: 'cat_utilities', type: 'need', color: '#5C98BC', icon: 'Zap', order: 1 },
   { id: 'sub_water_gas', name: 'Water & Gas', parentId: 'cat_utilities', type: 'need', color: '#72A9CA', icon: 'Flame', order: 2 },
-  { id: 'sub_broadband', name: 'Broadband Internet', parentId: 'cat_utilities', type: 'need', color: '#84B3CE', icon: 'Wifi', order: 3 },
+  { id: 'sub_broadband', name: 'Broadband Internet', parentId: 'cat_utilities', type: 'need', color: '#00B3DD', icon: 'Wifi', order: 3 },
   { id: 'sub_mobile', name: 'Mobile Recharge', parentId: 'cat_utilities', type: 'need', color: '#9FC7DE', icon: 'Smartphone', order: 4 },
 
   // 6. Health (Need)
@@ -69,7 +69,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'sub_sightseeing', name: 'Sightseeing & Trips', parentId: 'cat_travel', type: 'want', color: '#4FD1C5', icon: 'Compass', order: 3 },
 
   // 12. Personal Care (Want)
-  { id: 'cat_personal_care', name: 'Personal Care', parentId: null, type: 'want', color: '#B83280', icon: 'Sparkles', order: 12 },
+  { id: 'cat_personal_care', name: 'Personal Care', parentId: null, type: 'want', color: '#B83280', icon: 'Heart', order: 12 },
   { id: 'sub_salon', name: 'Salon & Grooming', parentId: 'cat_personal_care', type: 'want', color: '#B83280', icon: 'Scissors', order: 1 },
   { id: 'sub_fitness', name: 'Fitness & Gym', parentId: 'cat_personal_care', type: 'want', color: '#D53F8C', icon: 'Dumbbell', order: 2 },
   { id: 'sub_cosmetics', name: 'Skincare & Cosmetics', parentId: 'cat_personal_care', type: 'want', color: '#ED64A6', icon: 'Sparkle', order: 3 },

@@ -248,7 +248,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-deep-blue-600 dark:text-cream-300" />
             <div>
-              <h3 id="csv-modal-title" className="font-bold text-base text-deep-blue-950 dark:text-cream-100">
+              <h3 id="csv-modal-title" className="font-semibold text-base text-deep-blue-950 dark:text-cream-100">
                 Import Transactions from CSV
               </h3>
               <p className="text-xs text-deep-blue-700/70 dark:text-cream-400">
@@ -272,13 +272,13 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
           {step === 'upload' && (
             <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-cream-300 dark:border-dark-border rounded-2xl hover:bg-cream-50/50 dark:hover:bg-dark-elevated/50 transition-colors text-center">
               <Upload className="w-10 h-10 text-deep-blue-500 dark:text-cream-300 mb-3" />
-              <h4 className="font-bold text-sm text-deep-blue-950 dark:text-cream-100 mb-1">
+              <h4 className="font-semibold text-sm text-deep-blue-950 dark:text-cream-100 mb-1">
                 Choose CSV File
               </h4>
               <p className="text-xs text-deep-blue-700/70 dark:text-cream-400 mb-4 max-w-sm">
                 Upload your bank statement or expense export in CSV format.
               </p>
-              <label className="px-4 py-2.5 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-bold cursor-pointer transition-colors shadow-sm">
+              <label className="px-4 py-2.5 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold cursor-pointer transition-colors shadow-sm dark:bg-white dark:text-black dark:hover:bg-cream-200">
                 Browse Files
                 <input
                   type="file"
@@ -350,7 +350,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
                 <button
                   onClick={handleProcessMapping}
                   disabled={isProcessing}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-bold transition-all shadow-sm"
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold transition-all shadow-sm dark:bg-white dark:text-black dark:hover:bg-cream-200"
                 >
                   <span>Preview & Check Duplicates</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -371,7 +371,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
                     <CheckCircle className="w-4 h-4 text-status-success flex-shrink-0" />
                   )}
                   <span>
-                    Found <strong className="font-bold">{preparedItems.length}</strong> transactions.{' '}
+                    Found <strong className="font-semibold">{preparedItems.length}</strong> transactions.{' '}
                     {duplicateCount > 0 ? (
                       <span className="text-amber-600 dark:text-amber-400 font-semibold">
                         {duplicateCount} potential duplicates flagged within +/- 1 day.
@@ -413,7 +413,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
                   </button>
                 </div>
                 <div>
-                  <strong className="text-deep-blue-900 dark:text-cream-100 font-bold tabular-nums">
+                  <strong className="text-deep-blue-900 dark:text-cream-100 font-semibold tabular-nums">
                     {selectedCount}
                   </strong>{' '}
                   of {preparedItems.length} ready to import
@@ -423,7 +423,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
               {/* Preview Table */}
               <div className="border border-cream-200 dark:border-dark-border rounded-xl overflow-hidden overflow-x-auto max-h-72">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-cream-100 dark:bg-dark-elevated sticky top-0 text-deep-blue-800 dark:text-cream-200 font-bold border-b border-cream-200 dark:border-dark-border">
+                  <thead className="bg-cream-100 dark:bg-dark-elevated sticky top-0 text-deep-blue-800 dark:text-cream-200 font-semibold border-b border-cream-200 dark:border-dark-border">
                     <tr>
                       <th className="p-2.5 w-10"></th>
                       <th className="p-2.5">Date</th>
@@ -455,7 +455,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
                         <td className="p-2.5 font-medium text-deep-blue-900 dark:text-cream-100 max-w-xs truncate">
                           {item.merchant}
                         </td>
-                        <td className="p-2.5 font-mono font-bold tabular-nums text-deep-blue-950 dark:text-cream-100 whitespace-nowrap">
+                        <td className="p-2.5 font-mono font-semibold tabular-nums text-deep-blue-950 dark:text-cream-100 whitespace-nowrap">
                           {formatCurrency(item.amount)}
                         </td>
                         <td className="p-2.5 uppercase font-mono text-[10px] text-deep-blue-700 dark:text-cream-300">
@@ -492,7 +492,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
                 <button
                   onClick={handleExecuteImport}
                   disabled={isProcessing || selectedCount === 0}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold transition-all shadow-sm disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-cream-200"
                 >
                   <Check className="w-4 h-4" />
                   <span>Import {selectedCount} Transactions</span>

@@ -164,7 +164,7 @@ export function computePeriodPack(options: PeriodPackOptions): PeriodPack {
     const cat = categoryMap.get(catId);
     const name = cat?.name || 'Other';
     const type = cat?.type || 'want';
-    const color = cat?.color || '#16587B';
+    const color = cat?.color || '#847DFF';
     const icon = cat?.icon || 'Circle';
     const percentage = totalSpend > 0 ? (data.amount / totalSpend) * 100 : 0;
 

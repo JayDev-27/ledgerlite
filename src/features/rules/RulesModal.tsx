@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, Plus, Trash2, Check } from 'lucide-react';
+import { X, Lightbulb, Plus, Trash2, Check } from 'lucide-react';
 import type { Category, Rule, RuleMatcher, RuleMatcherOperator } from '@/types';
 import { repository } from '@/data/repository';
 import { useFocusTrap } from '@/lib/a11y/useFocusTrap';
@@ -104,9 +104,9 @@ export const RulesModal: React.FC<RulesModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-cream-200 dark:border-dark-border">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-deep-blue-600 dark:text-cream-300" />
+            <Lightbulb className="w-5 h-5 text-deep-blue-600 dark:text-cream-300" />
             <div>
-              <h3 id="rules-modal-title" className="font-bold text-base text-deep-blue-950 dark:text-cream-100">
+              <h3 id="rules-modal-title" className="font-semibold text-base text-deep-blue-950 dark:text-cream-100">
                 Learned Merchant Rules
               </h3>
               <p className="text-xs text-deep-blue-700/70 dark:text-cream-400">
@@ -131,7 +131,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({
           </span>
           <button
             onClick={() => setIsAdding(!isAdding)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-bold transition-all shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold transition-all shadow-sm dark:bg-white dark:text-black dark:hover:bg-cream-200"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Rule</span>
@@ -147,7 +147,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({
               className="p-4 rounded-xl bg-cream-50 dark:bg-dark-elevated border border-cream-200 dark:border-dark-border space-y-3 animate-fadeIn text-xs"
             >
               <div className="flex items-center justify-between">
-                <span className="font-bold text-deep-blue-900 dark:text-cream-100">
+                <span className="font-semibold text-deep-blue-900 dark:text-cream-100">
                   Create Learned Rule:
                 </span>
                 <button
@@ -245,7 +245,7 @@ export const RulesModal: React.FC<RulesModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="flex items-center gap-1 px-4 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-white font-bold"
+                  className="flex items-center gap-1 px-4 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-white font-semibold dark:bg-white dark:text-black dark:hover:bg-cream-200"
                 >
                   <Check className="w-3.5 h-3.5" />
                   <span>Create Rule</span>

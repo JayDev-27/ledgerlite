@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
-  Plus,
   ArrowRight,
   BarChart3,
   Calendar,
@@ -230,7 +229,7 @@ export const DashboardPage: React.FC = () => {
       name: cat?.name || 'Category',
       amount: maxAmount,
       percentOfTotal: currentTotalSpend > 0 ? (maxAmount / currentTotalSpend) * 100 : 0,
-      color: cat?.color || '#16587B',
+      color: cat?.color || '#847DFF',
     };
   }, [categorySpendMap, categoryMap, currentTotalSpend]);
 
@@ -286,7 +285,7 @@ export const DashboardPage: React.FC = () => {
         id: catId,
         name: cat?.name || 'Other',
         amount,
-        color: cat?.color || '#16587B',
+        color: cat?.color || '#847DFF',
         percent: currentTotalSpend > 0 ? (amount / currentTotalSpend) * 100 : 0,
       });
     }
@@ -391,11 +390,11 @@ export const DashboardPage: React.FC = () => {
   // 10. Payment Method Split
   const paymentMethodData: PaymentMethodItem[] = useMemo(() => {
     const methodNames: Record<PaymentMethod, { label: string; color: string }> = {
-      upi: { label: 'UPI', color: '#16587B' },
-      card: { label: 'Credit/Debit Card', color: '#84B3CE' },
+      upi: { label: 'UPI', color: '#847DFF' },
+      card: { label: 'Credit/Debit Card', color: '#00B3DD' },
       cash: { label: 'Cash', color: '#B86A04' },
       net_banking: { label: 'Net Banking', color: '#1B6B4C' },
-      wallet: { label: 'Digital Wallet', color: '#5A9DC2' },
+      wallet: { label: 'Digital Wallet', color: '#90B8F0' },
     };
 
     const counts: Record<PaymentMethod, { amount: number; count: number }> = {
@@ -461,26 +460,6 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-deep-blue-900 dark:text-cream-100">
-            Financial Dashboard
-          </h1>
-          <p className="text-xs text-deep-blue-600 dark:text-cream-300">
-            Executive spending metrics, period comparison, and portfolio visualisations
-          </p>
-        </div>
-
-        <button
-          onClick={openQuickAdd}
-          className="px-4 py-2.5 rounded-2xl bg-deep-blue-500 hover:bg-deep-blue-600 text-white text-xs font-bold flex items-center gap-2 shadow-md transition-transform active:scale-95 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          Add Expense
-        </button>
-      </div>
-
       {/* Period Selector Toolbar */}
       <DashboardPeriodToolbar
         currentPeriod={currentPeriod}
@@ -531,7 +510,7 @@ export const DashboardPage: React.FC = () => {
             <div className="bg-white dark:bg-dark-surface p-6 rounded-3xl border border-cream-200 dark:border-dark-border shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <h2 className="text-base font-bold text-deep-blue-900 dark:text-cream-100">
+                  <h2 className="text-base font-semibold text-deep-blue-900 dark:text-cream-100">
                     Category Breakdown
                   </h2>
                   <p className="text-xs text-deep-blue-600 dark:text-cream-300">
@@ -546,7 +525,7 @@ export const DashboardPage: React.FC = () => {
             <div className="bg-white dark:bg-dark-surface p-6 rounded-3xl border border-cream-200 dark:border-dark-border shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <h2 className="text-base font-bold text-deep-blue-900 dark:text-cream-100">
+                  <h2 className="text-base font-semibold text-deep-blue-900 dark:text-cream-100">
                     Daily Spending Trend
                   </h2>
                   <p className="text-xs text-deep-blue-600 dark:text-cream-300">
@@ -561,7 +540,7 @@ export const DashboardPage: React.FC = () => {
             <div className="bg-white dark:bg-dark-surface p-6 rounded-3xl border border-cream-200 dark:border-dark-border shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <h2 className="text-base font-bold text-deep-blue-900 dark:text-cream-100">
+                  <h2 className="text-base font-semibold text-deep-blue-900 dark:text-cream-100">
                     Category Spend Over Time
                   </h2>
                   <p className="text-xs text-deep-blue-600 dark:text-cream-300">
@@ -579,7 +558,7 @@ export const DashboardPage: React.FC = () => {
             <div className="bg-white dark:bg-dark-surface p-6 rounded-3xl border border-cream-200 dark:border-dark-border shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-base font-bold text-deep-blue-900 dark:text-cream-100">
+                  <h2 className="text-base font-semibold text-deep-blue-900 dark:text-cream-100">
                     50/30/20 Rule Analysis
                   </h2>
                   <p className="text-xs text-deep-blue-600 dark:text-cream-300">
@@ -599,7 +578,7 @@ export const DashboardPage: React.FC = () => {
             <div className="bg-white dark:bg-dark-surface p-6 rounded-3xl border border-cream-200 dark:border-dark-border shadow-sm">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h2 className="text-base font-bold text-deep-blue-900 dark:text-cream-100">
+                  <h2 className="text-base font-semibold text-deep-blue-900 dark:text-cream-100">
                     Top Merchants
                   </h2>
                   <p className="text-xs text-deep-blue-600 dark:text-cream-300">
@@ -617,7 +596,7 @@ export const DashboardPage: React.FC = () => {
             <div className="bg-white dark:bg-dark-surface p-6 rounded-3xl border border-cream-200 dark:border-dark-border shadow-sm">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h2 className="text-base font-bold text-deep-blue-900 dark:text-cream-100">
+                  <h2 className="text-base font-semibold text-deep-blue-900 dark:text-cream-100">
                     Payment Methods
                   </h2>
                   <p className="text-xs text-deep-blue-600 dark:text-cream-300">
@@ -633,7 +612,7 @@ export const DashboardPage: React.FC = () => {
           <div className="bg-white dark:bg-dark-surface p-6 rounded-3xl border border-cream-200 dark:border-dark-border shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <div>
-                <h2 className="text-base font-bold text-deep-blue-900 dark:text-cream-100">
+                <h2 className="text-base font-semibold text-deep-blue-900 dark:text-cream-100">
                   Day-of-Week Spending Distribution
                 </h2>
                 <p className="text-xs text-deep-blue-600 dark:text-cream-300">
@@ -651,7 +630,7 @@ export const DashboardPage: React.FC = () => {
                 <BarChart3 className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-sm text-deep-blue-900 dark:text-cream-100">
+                <h3 className="font-semibold text-sm text-deep-blue-900 dark:text-cream-100">
                   Detailed Monthly Budget Planning
                 </h3>
                 <p className="text-xs text-deep-blue-700 dark:text-cream-300">
@@ -660,8 +639,8 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
             <Link
-              to="/budgets"
-              className="px-4 py-2 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+              to="/app/budgets"
+              className="px-4 py-2 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm dark:bg-white dark:text-black dark:hover:bg-cream-200"
             >
               <span>Go to Budgets</span>
               <ArrowRight className="w-3.5 h-3.5" />

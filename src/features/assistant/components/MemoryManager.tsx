@@ -8,7 +8,7 @@ import {
   Edit2,
   CheckCircle2,
   Clock,
-  Sparkles,
+  Lightbulb,
 } from 'lucide-react';
 import { repository } from '@/data/repository';
 import type { MemoryItem, MemoryKind } from '@/types';
@@ -101,7 +101,7 @@ export const MemoryManager: React.FC<MemoryManagerProps> = ({ onMemoryChanged })
       {/* Header bar with filter tabs & Add CTA */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-deep-blue-500 text-cream-100 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-deep-blue-500 text-cream-100 flex items-center justify-center dark:bg-white dark:text-black dark:hover:bg-cream-200">
             <BrainCircuit className="w-4 h-4" />
           </div>
           <div>
@@ -116,7 +116,7 @@ export const MemoryManager: React.FC<MemoryManagerProps> = ({ onMemoryChanged })
 
         <button
           onClick={() => setIsAdding(!isAdding)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold transition-colors dark:bg-white dark:text-black dark:hover:bg-cream-200"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>{isAdding ? 'Cancel' : 'Add Memory Fact'}</span>
@@ -130,7 +130,7 @@ export const MemoryManager: React.FC<MemoryManagerProps> = ({ onMemoryChanged })
           className="p-4 rounded-xl bg-cream-50 dark:bg-dark-elevated border border-cream-200 dark:border-dark-border space-y-3 animate-fadeIn"
         >
           <div className="flex items-center gap-2 text-xs font-semibold text-deep-blue-900 dark:text-cream-100">
-            <Sparkles className="w-3.5 h-3.5 text-deep-blue-600 dark:text-cream-300" />
+            <Lightbulb className="w-3.5 h-3.5 text-deep-blue-600 dark:text-cream-300" />
             <span>Store Permanent Financial Context</span>
           </div>
 
@@ -177,7 +177,7 @@ export const MemoryManager: React.FC<MemoryManagerProps> = ({ onMemoryChanged })
             <button
               type="submit"
               disabled={!newText.trim()}
-              className="px-3.5 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 disabled:opacity-40 text-cream-100 text-xs font-semibold"
+              className="px-3.5 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 disabled:opacity-40 text-cream-100 text-xs font-semibold dark:bg-white dark:text-black dark:hover:bg-cream-200"
             >
               Save Memory
             </button>
@@ -252,7 +252,7 @@ export const MemoryManager: React.FC<MemoryManagerProps> = ({ onMemoryChanged })
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono uppercase text-[10px] tracking-wider px-2 py-0.5 rounded font-bold bg-cream-100 dark:bg-dark-elevated text-deep-blue-800 dark:text-cream-300">
+                    <span className="font-mono uppercase text-[10px] tracking-wider px-2 py-0.5 rounded font-semibold bg-cream-100 dark:bg-dark-elevated text-deep-blue-800 dark:text-cream-300">
                       {item.kind.replace('_', ' ')}
                     </span>
 
@@ -336,7 +336,7 @@ export const MemoryManager: React.FC<MemoryManagerProps> = ({ onMemoryChanged })
                       </button>
                       <button
                         onClick={() => handleSaveEdit(item.id)}
-                        className="px-2.5 py-0.5 rounded text-[11px] bg-deep-blue-500 text-cream-100 font-semibold"
+                        className="px-2.5 py-0.5 rounded text-[11px] bg-deep-blue-500 text-cream-100 font-semibold dark:bg-white dark:text-black dark:hover:bg-cream-200"
                       >
                         Save
                       </button>

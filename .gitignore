@@ -26,3 +26,11 @@ dist-ssr
 # Environment
 .env
 .env.production
+
+# Firebase / Vercel local state
+.firebase/
+.vercel/
+firebase-debug.log
+
+# Local agent tooling
+.claude/

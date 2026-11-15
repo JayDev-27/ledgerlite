@@ -1,4 +1,9 @@
-import { GoogleGenAI, type Content, type GenerateContentResponse } from '@google/genai';
+import {
+  GoogleGenAI,
+  FunctionCallingConfigMode,
+  type Content,
+  type GenerateContentResponse,
+} from '@google/genai';
 import { repository } from '@/data/repository';
 import type { Repository } from '@/data/repository';
 import { requestQueue, RequestQueue } from '@/lib/gemini/requestQueue';
@@ -11,6 +16,23 @@ import type {
   MemoryProposalRecord,
 } from './types';
 import type { MemoryKind } from '@/types';
+
+const SYNTHESIS_SUFFIX =
+  '\nNow write your answer for the user in plain language, based strictly on the tool results above. ' +
+  'Lead with the direct answer and the key numbers in ₹, then up to four short bullet points. Do not call any further tools.';
+
+/** Records why a model turn produced no prose (finish reason + part shapes, no content). */
+function logEmptyCandidate(stage: string, res: GenerateContentResponse | null | undefined) {
+  const cand = res?.candidates?.[0];
+  console.warn(`[assistant] empty ${stage} reply ` + JSON.stringify({
+    finishReason: cand?.finishReason,
+    partKinds: cand?.content?.parts?.map((p) => Object.keys(p).join('+')),
+    blockReason: res?.promptFeedback?.blockReason,
+  }));
+}
+
+const EMPTY_ANSWER_FALLBACK =
+  'I pulled the numbers but couldn’t write them up this time. Open the calculations below to see them, or ask again.';
 
 export async function runAgentTurn(
   options: AgentRunOptions,
@@ -79,14 +101,48 @@ ${memoryBlock}`;
           contents,
           config: {
             systemInstruction: effectiveConfig.systemInstruction,
-            tools: effectiveConfig.withTools
-              ? [{ functionDeclarations: CHAT_TOOLS_DECLARATIONS }]
-              : undefined,
+            // Declarations stay present even for the final synthesis: the history
+            // contains functionCall/functionResponse parts, and removing the tools
+            // makes the model return an empty candidate. Mode NONE forbids new calls.
+            tools: [{ functionDeclarations: CHAT_TOOLS_DECLARATIONS }],
+            toolConfig: {
+              functionCallingConfig: {
+                mode: effectiveConfig.withTools ? FunctionCallingConfigMode.AUTO : FunctionCallingConfigMode.NONE,
+              },
+            },
           },
         });
       },
       fallbackDeterministic: () => null,
     });
+  };
+
+  // Some models keep requesting tools during synthesis and return no prose.
+  // This writes the answer from a clean, text-only prompt carrying the same
+  // verified tool results the model has already seen — no tools available.
+  const synthesizeFromResults = async (): Promise<string | undefined> => {
+    const digest = toolExecutions
+      .map((t) => `### ${t.name}\ninput: ${JSON.stringify(t.args)}\noutput: ${JSON.stringify(t.result).slice(0, 6000)}`)
+      .join('\n\n');
+    const res = await queue.enqueue<GenerateContentResponse | null>({
+      tier,
+      model: modelName,
+      fallbackModel: 'gemini-3.5-flash-lite',
+      execute: async (currentModel) =>
+        ai.models.generateContent({
+          model: currentModel,
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: `Question: ${userQuery}\n\nVerified results from the user's ledger:\n\n${digest || '(no data returned)'}` }],
+            },
+          ],
+          config: { systemInstruction: systemInstruction + SYNTHESIS_SUFFIX },
+        }),
+      fallbackDeterministic: () => null,
+    });
+    if (!res?.text) logEmptyCandidate('clean synthesis', res);
+    return res?.text || undefined;
   };
 
   try {
@@ -110,7 +166,7 @@ ${memoryBlock}`;
     const round1Calls = round1Response.functionCalls;
     if (!round1Calls || round1Calls.length === 0) {
       return {
-        text: round1Response.text || 'I analyzed your query.',
+        text: round1Response.text || EMPTY_ANSWER_FALLBACK,
         toolExecutions,
         proposals,
         modelUsed: modelName,
@@ -184,8 +240,13 @@ ${memoryBlock}`;
 
     const round2Calls = round2Response.functionCalls;
     if (!round2Calls || round2Calls.length === 0) {
+      let text = round2Response.text;
+      if (!text) {
+        logEmptyCandidate('round2', round2Response);
+        text = await synthesizeFromResults();
+      }
       return {
-        text: round2Response.text || 'Analysis complete.',
+        text: text || EMPTY_ANSWER_FALLBACK,
         toolExecutions,
         proposals,
         modelUsed: modelName,
@@ -240,15 +301,16 @@ ${memoryBlock}`;
     });
 
     // Final synthesis call: no further tool calls permitted
-    const finalResponse = await callLlm({
-      systemInstruction:
-        systemInstruction +
-        '\nSynthesize your final, comprehensive quantitative advice for the user based strictly on the tool results provided above. Do not call any further tools.',
-      withTools: false,
-    });
+    const finalResponse = await callLlm({ systemInstruction: systemInstruction + SYNTHESIS_SUFFIX, withTools: false });
+
+    let finalText = finalResponse?.text;
+    if (!finalText) {
+      logEmptyCandidate('final', finalResponse);
+      finalText = await synthesizeFromResults();
+    }
 
     return {
-      text: finalResponse?.text || 'Analysis complete based on verified records.',
+      text: finalText || EMPTY_ANSWER_FALLBACK,
       toolExecutions,
       proposals,
       modelUsed: modelName,

@@ -27,11 +27,11 @@ function applyThemeToDocument(resolved: 'light' | 'dark') {
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  theme: 'light',
-  resolvedTheme: 'light',
+  theme: 'dark',
+  resolvedTheme: 'dark',
 
   initTheme: () => {
-    let savedTheme = 'light' as ThemeMode;
+    let savedTheme = 'dark' as ThemeMode;
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.THEME);
       if (stored === 'light' || stored === 'dark' || stored === 'system') {

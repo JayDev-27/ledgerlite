@@ -51,7 +51,7 @@ export const UndoToast: React.FC<UndoToastProps> = ({
 
       <button
         onClick={onUndo}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-deep-blue-950 text-xs font-bold transition-all shadow-sm active:scale-95"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-deep-blue-950 text-xs font-semibold transition-all shadow-sm active:scale-95"
       >
         <RotateCcw className="w-3.5 h-3.5" />
         <span>Undo ({secondsRemaining}s)</span>

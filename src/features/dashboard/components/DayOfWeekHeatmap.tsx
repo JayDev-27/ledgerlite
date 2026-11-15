@@ -70,7 +70,7 @@ export const DayOfWeekHeatmap: React.FC<DayOfWeekHeatmapProps> = ({ data }) => {
       <div className="flex items-center justify-between text-xs text-deep-blue-700 dark:text-cream-300">
         <span>
           Peak Spending Day:{' '}
-          <strong className="text-deep-blue-900 dark:text-cream-100 font-bold">
+          <strong className="text-deep-blue-900 dark:text-cream-100 font-semibold">
             {peakDay.dayName} ({formatCurrency(peakDay.totalAmount, { hideDecimals: true })})
           </strong>
         </span>
@@ -109,17 +109,17 @@ export const DayOfWeekHeatmap: React.FC<DayOfWeekHeatmapProps> = ({ data }) => {
                   const item = payload[0].payload as DayOfWeekData;
                   return (
                     <div className="bg-white dark:bg-dark-surface p-3 rounded-xl border border-cream-200 dark:border-dark-border shadow-lg text-xs space-y-1">
-                      <div className="font-bold text-deep-blue-900 dark:text-cream-100 flex items-center justify-between gap-2">
+                      <div className="font-semibold text-deep-blue-900 dark:text-cream-100 flex items-center justify-between gap-2">
                         <span>{item.dayName}</span>
                         {item.isPeak && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-status-warning-bg text-status-warning font-bold">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-status-warning-bg text-status-warning font-semibold">
                             Peak Spend
                           </span>
                         )}
                       </div>
                       <div className="flex justify-between gap-4 text-deep-blue-700 dark:text-cream-200">
                         <span>Total Spend:</span>
-                        <span className="font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+                        <span className="font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
                           {formatCurrency(item.totalAmount, { hideDecimals: true })}
                         </span>
                       </div>
@@ -145,7 +145,7 @@ export const DayOfWeekHeatmap: React.FC<DayOfWeekHeatmapProps> = ({ data }) => {
               {data.map((entry) => (
                 <Cell
                   key={entry.dayName}
-                  fill={entry.isPeak ? '#16587B' : '#84B3CE'}
+                  fill={entry.isPeak ? '#847DFF' : '#00B3DD'}
                 />
               ))}
             </Bar>

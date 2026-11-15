@@ -63,7 +63,7 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
 
     return (
       <div
-        className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-xs font-bold tabular-nums ${badgeBg}`}
+        className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-xs font-semibold tabular-nums ${badgeBg}`}
         title={`Prior: ${formatCurrency(comp.previous, { hideDecimals: true })}`}
       >
         {comp.trend === 'down' ? (
@@ -91,7 +91,7 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+          <div className="text-2xl font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
             {formatCurrency(totalSpendComparison.current, { hideDecimals: true })}
           </div>
         </div>
@@ -120,7 +120,7 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
               <CreditCard className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+          <div className="text-2xl font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
             {formatCurrency(dailyAvgComparison.current, { hideDecimals: true })}
             <span className="text-xs font-medium text-deep-blue-600 dark:text-cream-300 ml-0.5">
               /day
@@ -152,7 +152,7 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
               <PieChart className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-lg font-bold text-deep-blue-900 dark:text-cream-100 truncate">
+          <div className="text-lg font-semibold text-deep-blue-900 dark:text-cream-100 truncate">
             {topCategory?.name || 'No spend'}
           </div>
           <div className="text-sm font-semibold tabular-nums text-deep-blue-700 dark:text-cream-200 mt-0.5">
@@ -166,7 +166,7 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
                 className="w-2.5 h-2.5 rounded-full"
                 style={{ backgroundColor: topCategory.color }}
               />
-              <span className="font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+              <span className="font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
                 {topCategory.percentOfTotal.toFixed(1)}%
               </span>{' '}
               of period spend
@@ -186,7 +186,7 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
               <ShieldCheck className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+          <div className="text-2xl font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
             {data.isMonthlyView === false
               ? 'N/A'
               : budgetStatus
@@ -196,7 +196,7 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
         </div>
         <div className="mt-2 flex items-center justify-between">
           <span
-            className={`text-xs font-bold px-2 py-0.5 rounded-full capitalize ${
+            className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${
               data.isMonthlyView === false || !budgetStatus
                 ? 'bg-cream-200 dark:bg-dark-elevated text-deep-blue-700 dark:text-cream-300'
                 : budgetStatus.status === 'over'
@@ -239,7 +239,7 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
               Target
             </span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs font-bold tabular-nums">
+          <div className="flex items-center gap-1.5 text-xs font-semibold tabular-nums">
             <span className="text-deep-blue-900 dark:text-cream-100">
               {split503020.needPercent}%N
             </span>
@@ -258,7 +258,7 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
         <div className="mt-3">
           <div className="w-full h-2 rounded-full flex overflow-hidden bg-cream-200 dark:bg-dark-elevated">
             <div
-              className="bg-deep-blue-500 h-full"
+              className="bg-deep-blue-500 h-full dark:bg-white dark:text-black dark:hover:bg-cream-200"
               style={{ width: `${split503020.needPercent}%` }}
               title={`Needs: ${split503020.needPercent}% (target 50%)`}
             />

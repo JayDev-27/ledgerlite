@@ -81,7 +81,7 @@ export const PaymentMethodSplit: React.FC<PaymentMethodSplitProps> = ({ data }) 
                   const item = payload[0].payload as PaymentMethodItem;
                   return (
                     <div className="bg-white dark:bg-dark-surface p-3 rounded-xl border border-cream-200 dark:border-dark-border shadow-lg text-xs space-y-1">
-                      <div className="flex items-center gap-2 font-bold text-deep-blue-900 dark:text-cream-100">
+                      <div className="flex items-center gap-2 font-semibold text-deep-blue-900 dark:text-cream-100">
                         <span
                           className="w-2.5 h-2.5 rounded-full"
                           style={{ backgroundColor: item.color }}
@@ -102,7 +102,7 @@ export const PaymentMethodSplit: React.FC<PaymentMethodSplitProps> = ({ data }) 
                       </div>
                       <div className="flex justify-between gap-4 text-deep-blue-700 dark:text-cream-200">
                         <span>Share:</span>
-                        <span className="font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+                        <span className="font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
                           {item.percent.toFixed(1)}%
                         </span>
                       </div>
@@ -135,7 +135,7 @@ export const PaymentMethodSplit: React.FC<PaymentMethodSplitProps> = ({ data }) 
               <span className="tabular-nums font-semibold text-deep-blue-900 dark:text-cream-100">
                 {formatCurrency(item.amount, { compact: true, hideDecimals: true })}
               </span>
-              <span className="font-bold text-deep-blue-700 dark:text-cream-200 tabular-nums w-8 text-right">
+              <span className="font-semibold text-deep-blue-700 dark:text-cream-200 tabular-nums w-8 text-right">
                 {item.percent.toFixed(0)}%
               </span>
             </div>

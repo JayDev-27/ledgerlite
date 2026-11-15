@@ -7,12 +7,15 @@ import { QuickAddModal } from './QuickAddModal';
 import { useUiStore } from '@/store/uiStore';
 import { useThemeStore } from '@/store/themeStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { repository } from '@/data/repository';
+import { repository, getActiveVaultId } from '@/data/repository';
 import { seedDatabase } from '@/data/seed';
 import { generateDueRecurringTransactions } from '@/features/recurring/recurringService';
 import { downloadBackupJson } from '@/lib/backup';
+import { CLOUD_MODE } from '@/lib/auth/firebase';
+import { secretsAdapter } from '@/lib/secrets';
+import { Link } from 'react-router-dom';
 import { APP_NAME } from '@/constants/app';
-import { Sparkles, AlertTriangle, Download } from 'lucide-react';
+import { Info, Download } from 'lucide-react';
 import { OfflineIndicator } from '@/components/pwa/OfflineIndicator';
 import { PwaInstallBanner } from '@/components/pwa/PwaInstallBanner';
 
@@ -47,12 +50,33 @@ export function isQuickAddShortcutAllowed(
   return false;
 }
 
+// One seed per vault (per signed-in user on the hosted site); shared promise also
+// absorbs StrictMode's double mount, where two concurrent seeds would collide.
+const seedOnce = new Map<string, Promise<Awaited<ReturnType<typeof seedDatabase>> | null>>();
+
 export const Shell: React.FC = () => {
   const { isQuickAddOpen, openQuickAdd, closeQuickAdd } = useUiStore();
   const { initTheme } = useThemeStore();
   const { settings, loadSettings, requestStoragePersistence, recordBackup, dismissBackupReminder } = useSettingsStore();
   const [seedNotice, setSeedNotice] = useState<string | null>(null);
   const [showBackupReminder, setShowBackupReminder] = useState(false);
+  // Pages read categories once on mount, so they must not render until the
+  // first-run seed has finished (otherwise a fresh vault shows "Other" everywhere).
+  const [storageReady, setStorageReady] = useState(false);
+  // Hosted site: each user must bring their own Gemini key before AI features work.
+  const [needsAiKey, setNeedsAiKey] = useState(false);
+
+  useEffect(() => {
+    if (!CLOUD_MODE || !storageReady) return;
+    const check = () => secretsAdapter.getApiKey().then((k) => setNeedsAiKey(!k)).catch(() => undefined);
+    check();
+    window.addEventListener('focus', check);
+    window.addEventListener('gemini-key-updated', check);
+    return () => {
+      window.removeEventListener('focus', check);
+      window.removeEventListener('gemini-key-updated', check);
+    };
+  }, [storageReady]);
 
   // Initialize theme & settings on mount
   useEffect(() => {
@@ -62,14 +86,23 @@ export const Shell: React.FC = () => {
     // Check and auto-seed if first run
     const initStorage = async () => {
       try {
-        const isEmpty = await repository.isDatabaseEmpty();
-        if (isEmpty) {
-          const res = await seedDatabase(repository, false);
+        // Shared promise: StrictMode double-mounts in dev, and two concurrent
+        // seeds would collide on primary keys.
+        const vault = getActiveVaultId();
+        if (!seedOnce.has(vault)) {
+          seedOnce.set(
+            vault,
+            repository.isDatabaseEmpty().then((isEmpty) => (isEmpty ? seedDatabase(repository, false) : null))
+          );
+        }
+        const res = await seedOnce.get(vault);
+        if (res) {
           setSeedNotice(
             `Welcome to ${APP_NAME}! Loaded ${res.transactionsCount} demo transactions across 6 months.`
           );
           setTimeout(() => setSeedNotice(null), 8000);
         }
+        setStorageReady(true);
         // Auto-request persistence safely on first load
         await requestStoragePersistence();
 
@@ -80,6 +113,8 @@ export const Shell: React.FC = () => {
         }
       } catch (err) {
         console.error('Database initialization error:', err);
+      } finally {
+        setStorageReady(true);
       }
     };
 
@@ -88,6 +123,8 @@ export const Shell: React.FC = () => {
 
   // Check if weekly backup reminder is due (every 7 days)
   useEffect(() => {
+    // The website keeps data in the cloud, so the "browser-only" backup nag doesn't apply.
+    if (CLOUD_MODE) return;
     const now = new Date().getTime();
     const snoozeUntil = settings.dismissedBackupReminderUntil
       ? new Date(settings.dismissedBackupReminderUntil).getTime()
@@ -138,7 +175,7 @@ export const Shell: React.FC = () => {
   }, [isQuickAddOpen, openQuickAdd, closeQuickAdd]);
 
   return (
-    <div className="min-h-screen flex bg-cream-100 dark:bg-dark-bg text-deep-blue-950 dark:text-cream-100 antialiased selection:bg-cream-300 selection:text-deep-blue-900 transition-colors">
+    <div className="app-shell min-h-screen flex bg-cream-100 dark:bg-dark-bg text-deep-blue-950 dark:text-cream-100 antialiased selection:bg-cream-300 selection:text-deep-blue-900 transition-colors">
       {/* Skip to Main Content Link */}
       <a
         href="#main-content"
@@ -159,56 +196,75 @@ export const Shell: React.FC = () => {
         <PwaInstallBanner />
 
         {/* First-run seed notification toast */}
-        {seedNotice && (
-          <div className="print:hidden mx-4 sm:mx-6 mt-4 p-3.5 rounded-xl bg-deep-blue-500 text-cream-100 text-sm flex items-center justify-between shadow-card animate-fadeIn">
-            <div className="flex items-center gap-2.5">
-              <Sparkles className="w-4 h-4 text-cream-200 flex-shrink-0" />
-              <span>{seedNotice}</span>
-            </div>
-            <button
-              onClick={() => setSeedNotice(null)}
-              className="text-xs text-cream-200 hover:text-white px-2 py-1 rounded bg-deep-blue-600 ml-3"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-
-        {/* Weekly Backup Reminder Banner */}
-        {showBackupReminder && (
-          <div className="print:hidden mx-4 sm:mx-6 mt-4 p-3.5 rounded-xl bg-amber-50 dark:bg-dark-elevated border border-amber-200 dark:border-amber-900/50 text-amber-950 dark:text-cream-100 text-xs sm:text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm animate-fadeIn">
-            <div className="flex items-start sm:items-center gap-2.5">
-              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5 sm:mt-0" />
-              <div>
-                <span className="font-semibold">Weekly Backup Reminder: </span>
-                <span>
-                  Your financial data is stored locally in your browser and can be cleared if cache is reset. Download a JSON backup to protect your records.
-                </span>
+        {(seedNotice || showBackupReminder || needsAiKey) && (
+          <div className="print:hidden w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 space-y-2">
+            {seedNotice && (
+              <div role="status" className="flex items-center gap-3 h-11 pl-4 pr-1.5 rounded-xl bg-white dark:bg-white/[0.03] border border-cream-200 dark:border-white/[0.06] text-[13px] animate-fadeIn">
+                <Info className="w-4 h-4 shrink-0 text-deep-blue-500 dark:text-white/40" strokeWidth={1.75} />
+                <span className="flex-1 truncate text-deep-blue-900/70 dark:text-white/60">{seedNotice}</span>
+                <button
+                  onClick={() => setSeedNotice(null)}
+                  className="h-8 px-3 rounded-lg text-deep-blue-900/50 dark:text-white/45 hover:text-deep-blue-950 dark:hover:text-white hover:bg-deep-blue-50/60 dark:hover:bg-white/[0.05] transition-colors"
+                >
+                  Dismiss
+                </button>
               </div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-auto">
-              <button
-                onClick={handleBackupNow}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 font-semibold text-xs transition-colors shadow-sm"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Backup Now</span>
-              </button>
-              <button
-                onClick={() => {
-                  dismissBackupReminder(7);
-                  setShowBackupReminder(false);
-                }}
-                className="px-2.5 py-1.5 rounded-lg text-xs text-deep-blue-700 dark:text-cream-300 hover:bg-cream-200/60 dark:hover:bg-dark-border transition-colors"
-              >
-                Remind in 7 days
-              </button>
-            </div>
+            )}
+
+            {needsAiKey && (
+              <div role="status" className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 min-h-11 py-1.5 pl-4 pr-1.5 rounded-xl bg-white dark:bg-white/[0.03] border border-cream-200 dark:border-white/[0.06] text-[13px] animate-fadeIn">
+                <span className="w-1.5 h-1.5 rounded-full bg-deep-blue-500 dark:bg-sky-400 shrink-0" aria-hidden="true" />
+                <p className="flex-1 min-w-0 text-deep-blue-900/70 dark:text-white/60">
+                  <span className="text-deep-blue-950 dark:text-white">Connect your Gemini key.</span>{' '}
+                  <span className="hidden md:inline">It powers the assistant, smart categorisation and written reports. Free from Google AI Studio.</span>
+                </p>
+                <Link
+                  to="/app/settings"
+                  className="ml-auto shrink-0 flex items-center h-8 px-3 rounded-lg font-medium bg-deep-blue-950 text-white dark:bg-white dark:text-black hover:opacity-90 transition-opacity"
+                >
+                  Add key
+                </Link>
+              </div>
+            )}
+
+            {showBackupReminder && (
+              <div role="status" className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 min-h-11 py-1.5 pl-4 pr-1.5 rounded-xl bg-white dark:bg-white/[0.03] border border-cream-200 dark:border-white/[0.06] text-[13px] animate-fadeIn">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-300 shrink-0" aria-hidden="true" />
+                <p className="flex-1 min-w-0 text-deep-blue-900/70 dark:text-white/60">
+                  <span className="text-deep-blue-950 dark:text-white">Back up your vault.</span>{' '}
+                  <span className="hidden md:inline">Your ledger lives only in this browser — a backup keeps it safe if site data is cleared.</span>
+                </p>
+                <div className="flex items-center gap-1 shrink-0 ml-auto">
+                  <button
+                    onClick={() => {
+                      dismissBackupReminder(7);
+                      setShowBackupReminder(false);
+                    }}
+                    className="h-8 px-3 rounded-lg text-deep-blue-900/50 dark:text-white/45 hover:text-deep-blue-950 dark:hover:text-white hover:bg-deep-blue-50/60 dark:hover:bg-white/[0.05] transition-colors"
+                  >
+                    Later
+                  </button>
+                  <button
+                    onClick={handleBackupNow}
+                    className="flex items-center gap-1.5 h-8 px-3 rounded-lg font-medium bg-deep-blue-950 text-white dark:bg-white dark:text-black hover:opacity-90 transition-opacity"
+                  >
+                    <Download className="w-3.5 h-3.5" strokeWidth={2} />
+                    Back up
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         <main id="main-content" tabIndex={-1} className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto focus:outline-none">
-          <Outlet />
+          {storageReady ? (
+            <Outlet />
+          ) : (
+            <div className="min-h-[40vh] grid place-items-center" role="status" aria-label="Preparing your vault">
+              <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-sky-400 animate-spin" />
+            </div>
+          )}
         </main>
       </div>
 

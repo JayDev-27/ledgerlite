@@ -74,7 +74,7 @@ export const CategoryDonutChart: React.FC<CategoryDonutChartProps> = ({
               strokeWidth={2}
             >
               {data.map((entry) => (
-                <Cell key={entry.id} fill={entry.color || '#16587B'} />
+                <Cell key={entry.id} fill={entry.color || '#847DFF'} />
               ))}
             </Pie>
             <Tooltip
@@ -83,7 +83,7 @@ export const CategoryDonutChart: React.FC<CategoryDonutChartProps> = ({
                   const item = payload[0].payload as CategoryDonutItem;
                   return (
                     <div className="bg-white dark:bg-dark-surface p-3 rounded-xl border border-cream-200 dark:border-dark-border shadow-lg text-xs space-y-1">
-                      <div className="flex items-center gap-2 font-bold text-deep-blue-900 dark:text-cream-100">
+                      <div className="flex items-center gap-2 font-semibold text-deep-blue-900 dark:text-cream-100">
                         <span
                           className="w-2.5 h-2.5 rounded-full"
                           style={{ backgroundColor: item.color }}
@@ -98,7 +98,7 @@ export const CategoryDonutChart: React.FC<CategoryDonutChartProps> = ({
                       </div>
                       <div className="flex justify-between gap-4 text-deep-blue-700 dark:text-cream-200">
                         <span>Share:</span>
-                        <span className="font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+                        <span className="font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
                           {item.percent.toFixed(1)}%
                         </span>
                       </div>
@@ -116,7 +116,7 @@ export const CategoryDonutChart: React.FC<CategoryDonutChartProps> = ({
           <span className="text-[11px] font-semibold uppercase tracking-wider text-deep-blue-500 dark:text-cream-300">
             Total
           </span>
-          <span className="text-base font-extrabold tabular-nums text-deep-blue-900 dark:text-cream-100">
+          <span className="text-base font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
             {formatCurrency(totalSpend, { compact: true, hideDecimals: true })}
           </span>
         </div>
@@ -142,7 +142,7 @@ export const CategoryDonutChart: React.FC<CategoryDonutChartProps> = ({
               <span className="text-deep-blue-700 dark:text-cream-200 tabular-nums">
                 {formatCurrency(item.amount, { hideDecimals: true })}
               </span>
-              <span className="font-bold text-deep-blue-900 dark:text-cream-100 tabular-nums w-10 text-right">
+              <span className="font-semibold text-deep-blue-900 dark:text-cream-100 tabular-nums w-10 text-right">
                 {item.percent.toFixed(0)}%
               </span>
             </div>

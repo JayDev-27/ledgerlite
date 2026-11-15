@@ -59,7 +59,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <AlertTriangle className="w-8 h-8" />
             </div>
             
-            <h1 className="text-2xl font-bold text-deep-blue-500 dark:text-cream-100 mb-2">
+            <h1 className="text-2xl font-semibold text-deep-blue-500 dark:text-cream-100 mb-2">
               Something went wrong
             </h1>
             
@@ -76,7 +76,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={this.handleReset}
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 font-medium text-sm transition-colors shadow-sm"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 font-medium text-sm transition-colors shadow-sm dark:bg-white dark:text-black dark:hover:bg-cream-200"
               >
                 <RefreshCw className="w-4 h-4" />
                 Reload Page

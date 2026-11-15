@@ -1,24 +1,18 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import {
-  Sun,
-  Moon,
-  Plus,
-  Shield,
-  WifiOff,
-} from 'lucide-react';
+import { Sun, Moon, Plus, WifiOff } from 'lucide-react';
 import { useThemeStore } from '@/store/themeStore';
 import { useUiStore } from '@/store/uiStore';
 import { usePwa } from '@/lib/pwa';
-import { APP_NAME } from '@/constants/app';
+import { BrandGlyph } from '@/components/brand/BrandMark';
 
 const ROUTE_TITLES: Record<string, { title: string; subtitle: string }> = {
-  '/': { title: 'Financial Dashboard', subtitle: 'Overview & Key Performance Indicators' },
-  '/transactions': { title: 'Transactions Ledger', subtitle: 'Search, filter, and categorise expenses' },
-  '/budgets': { title: 'Monthly Budgets', subtitle: '50/30/20 allocation & burn rate pacing' },
-  '/reports': { title: 'Period Reports', subtitle: 'Analytics, Excel exports, and visual breakdown' },
-  '/assistant': { title: 'Gemini Assistant', subtitle: 'Agentic reasoning with long-term memory' },
-  '/settings': { title: 'Preferences & Storage', subtitle: 'Currency, AI models, and local backup' },
+  '/app': { title: 'Overview', subtitle: 'Your month at a glance' },
+  '/app/transactions': { title: 'Transactions', subtitle: 'Every rupee, searchable' },
+  '/app/budgets': { title: 'Budgets', subtitle: 'Envelopes, pace and rollovers' },
+  '/app/reports': { title: 'Reports', subtitle: 'Period packs and exports' },
+  '/app/assistant': { title: 'Assistant', subtitle: 'Ask anything about your money' },
+  '/app/settings': { title: 'Settings', subtitle: 'Preferences, AI and backups' },
 };
 
 export const Header: React.FC = () => {
@@ -27,71 +21,52 @@ export const Header: React.FC = () => {
   const { openQuickAdd } = useUiStore();
   const { isOnline } = usePwa();
 
-  const currentRoute = ROUTE_TITLES[location.pathname] || {
-    title: APP_NAME,
-    subtitle: 'Private Wealth Management',
-  };
+  const current = ROUTE_TITLES[location.pathname] ?? { title: 'LedgerLite', subtitle: '' };
+  const nextTheme = resolvedTheme === 'dark' ? 'light' : 'dark';
 
   return (
-    <header className="sticky top-0 z-20 backdrop-blur-md bg-cream-100/90 dark:bg-dark-bg/90 border-b border-cream-200 dark:border-dark-border transition-colors">
-      <div className="flex items-center justify-between px-4 sm:px-6 h-16">
-        {/* Title & Subtitle */}
-        <div className="flex flex-col justify-center">
-          <h1 className="text-lg sm:text-xl font-bold text-deep-blue-900 dark:text-cream-100 tracking-tight leading-tight">
-            {currentRoute.title}
-          </h1>
-          <p className="hidden sm:block text-xs text-deep-blue-700/70 dark:text-cream-300">
-            {currentRoute.subtitle}
-          </p>
+    <header className="sticky top-0 z-20 bg-cream-100/80 dark:bg-dark-bg/75 backdrop-blur-xl backdrop-saturate-150 border-b border-cream-200 dark:border-white/[0.06]">
+      <div className="flex items-center justify-between gap-4 px-5 sm:px-8 h-16">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="md:hidden text-deep-blue-950 dark:text-white">
+            <BrandGlyph size={22} />
+          </span>
+          <div className="flex items-baseline gap-3 min-w-0">
+            <h1 className="!text-[26px] leading-none font-normal text-deep-blue-950 dark:text-white truncate">{current.title}</h1>
+            {current.subtitle && (
+              <p className="hidden sm:block text-[13px] text-deep-blue-900/45 dark:text-white/35 truncate">{current.subtitle}</p>
+            )}
+          </div>
         </div>
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Storage / Offline Status Pill */}
-          {!isOnline ? (
-            <div
+        <div className="flex items-center gap-1.5">
+          {!isOnline && (
+            <span
               role="status"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200"
-              title="Device is offline. Local-first features work 100%."
+              title="You're offline. Everything keeps working locally."
+              className="flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] text-amber-800 dark:text-amber-200/90 bg-amber-100 dark:bg-amber-400/10"
             >
-              <WifiOff className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
-              <span className="hidden sm:inline">Offline (Vault Active)</span>
-            </div>
-          ) : (
-            <div
-              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border text-deep-blue-700 dark:text-cream-300"
-              title="Data is stored privately in browser IndexedDB"
-            >
-              <Shield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Local Vault</span>
-            </div>
+              <WifiOff className="w-3.5 h-3.5" strokeWidth={1.75} />
+              <span className="hidden sm:inline">Offline</span>
+            </span>
           )}
 
-          {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-xl text-deep-blue-700 dark:text-cream-200 hover:bg-cream-200/70 dark:hover:bg-dark-elevated transition-colors border border-transparent hover:border-cream-300 dark:hover:border-dark-border focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500 focus-visible:ring-offset-2"
-            title={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
-            aria-label={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
+            title={`Switch to ${nextTheme} mode`}
+            aria-label={`Switch to ${nextTheme} mode`}
+            className="grid place-items-center w-9 h-9 rounded-xl text-deep-blue-900/50 hover:text-deep-blue-950 hover:bg-deep-blue-50/60 dark:text-white/40 dark:hover:text-white dark:hover:bg-white/[0.05] transition-colors"
           >
-            {resolvedTheme === 'dark' ? (
-              <Sun className="w-4 h-4 text-amber-300" />
-            ) : (
-              <Moon className="w-4 h-4 text-deep-blue-600" />
-            )}
+            {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" strokeWidth={1.75} /> : <Moon className="w-4 h-4" strokeWidth={1.75} />}
           </button>
 
-          {/* Quick Add CTA Button */}
+          {/* Desktop logs expenses from the sidebar; phones get it here */}
           <button
             onClick={openQuickAdd}
-            aria-label="Quick Add Expense (shortcut N)"
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-deep-blue-500 hover:bg-deep-blue-600 active:bg-deep-blue-700 text-cream-100 text-sm font-medium shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-deep-blue-500 focus-visible:ring-offset-2"
+            aria-label="Log expense (shortcut N)"
+            className="md:hidden grid place-items-center w-9 h-9 rounded-xl bg-deep-blue-950 text-white dark:bg-white dark:text-black"
           >
-            <Plus className="w-4 h-4" />
-            <span className="hidden xs:inline">Quick Add</span>
-            <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono rounded bg-deep-blue-700 text-cream-200">
-              N
-            </kbd>
+            <Plus className="w-4 h-4" strokeWidth={2} />
           </button>
         </div>
       </div>

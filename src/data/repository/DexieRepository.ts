@@ -18,7 +18,7 @@ import type {
 } from './types';
 
 export class DexieRepository implements Repository {
-  private db: FinanceDatabase;
+  protected db: FinanceDatabase;
 
   constructor(database: FinanceDatabase = defaultDb) {
     this.db = database;
@@ -847,4 +847,5 @@ export class DexieRepository implements Repository {
   }
 }
 
-export const repository = new DexieRepository();
+/** The shared on-device vault (local mode, and the default before sign-in). */
+export const localRepository = new DexieRepository();

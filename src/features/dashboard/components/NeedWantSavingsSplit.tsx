@@ -26,8 +26,8 @@ export const NeedWantSavingsSplit: React.FC<NeedWantSavingsSplitProps> = ({
       target: 50,
       actual: actualNeedPct,
       amount: needSpent,
-      color: '#16587B',
-      bgColor: 'bg-deep-blue-500',
+      color: '#847DFF',
+      bgColor: 'bg-deep-blue-500 dark:bg-white dark:text-black dark:hover:bg-cream-200',
       description: 'Housing, Groceries, Utilities, Healthcare',
     },
     {
@@ -35,7 +35,7 @@ export const NeedWantSavingsSplit: React.FC<NeedWantSavingsSplitProps> = ({
       target: 30,
       actual: actualWantPct,
       amount: wantSpent,
-      color: '#84B3CE',
+      color: '#00B3DD',
       bgColor: 'bg-sky-400',
       description: 'Dining, Entertainment, Shopping, Travel',
     },
@@ -87,7 +87,7 @@ export const NeedWantSavingsSplit: React.FC<NeedWantSavingsSplitProps> = ({
             <div key={p.title} className="space-y-1.5">
               <div className="flex items-center justify-between text-xs">
                 <div>
-                  <span className="font-bold text-deep-blue-900 dark:text-cream-100">
+                  <span className="font-semibold text-deep-blue-900 dark:text-cream-100">
                     {p.title}
                   </span>
                   <span className="text-deep-blue-600 dark:text-cream-300 ml-1.5 text-[11px]">
@@ -98,11 +98,11 @@ export const NeedWantSavingsSplit: React.FC<NeedWantSavingsSplitProps> = ({
                   <span className="font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
                     {formatCurrency(p.amount, { hideDecimals: true })}
                   </span>
-                  <span className="font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">
+                  <span className="font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
                     {p.actual}%
                   </span>
                   <span
-                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
                       Math.abs(delta) <= 3
                         ? 'bg-status-success-bg text-status-success'
                         : delta > 3 && p.title.startsWith('Needs')

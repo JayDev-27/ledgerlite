@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Calendar,
-  Sparkles,
+  Lightbulb,
   Sliders,
   ChevronLeft,
   ChevronRight,
@@ -228,16 +228,8 @@ export const BudgetsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
-      {/* Top Header & Month Picker Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-deep-blue-900 dark:text-cream-100">
-            Monthly Budgets
-          </h1>
-          <p className="text-xs text-deep-blue-600 dark:text-cream-300">
-            Monitor real-time burn rate, linear pace variance, and category limits
-          </p>
-        </div>
+      {/* Month Picker Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-4">
 
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Month Stepper */}
@@ -255,7 +247,7 @@ export const BudgetsPage: React.FC = () => {
               <select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="bg-transparent text-xs font-bold text-deep-blue-900 dark:text-cream-100 focus:outline-none cursor-pointer"
+                className="bg-transparent text-xs font-semibold text-deep-blue-900 dark:text-cream-100 focus:outline-none cursor-pointer"
               >
                 {availableMonths.map((m) => (
                   <option key={m} value={m} className="bg-white dark:bg-dark-surface text-deep-blue-900 dark:text-cream-100">
@@ -277,9 +269,9 @@ export const BudgetsPage: React.FC = () => {
           {/* AI Suggest Budget Button */}
           <button
             onClick={handleOpenSuggestModal}
-            className="px-4 py-2 rounded-2xl bg-deep-blue-50 hover:bg-deep-blue-100 dark:bg-dark-elevated dark:hover:bg-dark-border border border-deep-blue-200 dark:border-dark-border text-deep-blue-700 dark:text-cream-100 text-xs font-bold flex items-center gap-2 transition-all shadow-sm"
+            className="px-4 py-2 rounded-2xl bg-deep-blue-50 hover:bg-deep-blue-100 dark:bg-dark-elevated dark:hover:bg-dark-border border border-deep-blue-200 dark:border-dark-border text-deep-blue-700 dark:text-cream-100 text-xs font-semibold flex items-center gap-2 transition-all shadow-sm"
           >
-            <Sparkles className="w-3.5 h-3.5 text-deep-blue-500 dark:text-cream-100" />
+            <Lightbulb className="w-3.5 h-3.5 text-deep-blue-500 dark:text-cream-100" />
             Suggest Budget (AI)
           </button>
 
@@ -289,7 +281,7 @@ export const BudgetsPage: React.FC = () => {
               setEditCategoryId(undefined);
               setIsEditModalOpen(true);
             }}
-            className="px-4 py-2 rounded-2xl bg-deep-blue-500 hover:bg-deep-blue-600 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-transform active:scale-95"
+            className="px-4 py-2 rounded-2xl bg-deep-blue-500 hover:bg-deep-blue-600 text-white text-xs font-semibold flex items-center gap-2 shadow-sm transition-transform active:scale-95 dark:bg-white dark:text-black dark:hover:bg-cream-200"
           >
             <Sliders className="w-3.5 h-3.5" />
             Manage Limits
@@ -316,7 +308,7 @@ export const BudgetsPage: React.FC = () => {
             <div className="bg-white dark:bg-dark-surface p-6 rounded-3xl border border-cream-200 dark:border-dark-border shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <h2 className="text-base font-bold text-deep-blue-900 dark:text-cream-100">
+                  <h2 className="text-base font-semibold text-deep-blue-900 dark:text-cream-100">
                     Budget vs Actual Spend
                   </h2>
                   <p className="text-xs text-deep-blue-600 dark:text-cream-300">
@@ -331,7 +323,7 @@ export const BudgetsPage: React.FC = () => {
             <div className="bg-white dark:bg-dark-surface p-6 rounded-3xl border border-cream-200 dark:border-dark-border shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <h2 className="text-base font-bold text-deep-blue-900 dark:text-cream-100">
+                  <h2 className="text-base font-semibold text-deep-blue-900 dark:text-cream-100">
                     Cumulative Spend vs Ideal Pace
                   </h2>
                   <p className="text-xs text-deep-blue-600 dark:text-cream-300">
@@ -350,7 +342,7 @@ export const BudgetsPage: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-lg font-bold text-deep-blue-900 dark:text-cream-100">
+                <h2 className="text-lg font-semibold text-deep-blue-900 dark:text-cream-100">
                   Category Limits & Pace ({metrics.categories.length})
                 </h2>
                 <p className="text-xs text-deep-blue-600 dark:text-cream-300">

@@ -101,7 +101,7 @@ export const BudgetVsActualChart: React.FC<BudgetVsActualChartProps> = ({
                 const item = payload[0].payload as (typeof data)[0];
                 return (
                   <div className="bg-white dark:bg-dark-surface p-3 rounded-xl border border-cream-200 dark:border-dark-border shadow-lg text-xs space-y-1">
-                    <div className="font-bold text-deep-blue-900 dark:text-cream-100 mb-1">
+                    <div className="font-semibold text-deep-blue-900 dark:text-cream-100 mb-1">
                       {item.name}
                     </div>
                     <div className="flex justify-between gap-4 text-deep-blue-700 dark:text-cream-200">
@@ -119,7 +119,7 @@ export const BudgetVsActualChart: React.FC<BudgetVsActualChartProps> = ({
                     <div className="flex justify-between gap-4 pt-1 border-t border-cream-100 dark:border-dark-border">
                       <span>Budget Used:</span>
                       <span
-                        className={`font-bold tabular-nums ${
+                        className={`font-semibold tabular-nums ${
                           item.percentUsed > 100
                             ? 'text-status-danger'
                             : item.percentUsed >= 80
@@ -146,10 +146,10 @@ export const BudgetVsActualChart: React.FC<BudgetVsActualChartProps> = ({
               </span>
             )}
           />
-          <Bar dataKey="limit" name="limit" fill="#16587B" radius={[4, 4, 0, 0]} maxBarSize={32} />
-          <Bar dataKey="spent" name="spent" radius={[4, 4, 0, 0]} maxBarSize={32}>
+          <Bar dataKey="limit" name="limit" fill="#847DFF" radius={[4, 4, 0, 0]} maxBarSize={32} />
+          <Bar dataKey="spent" name="spent" fill="#00B3DD" radius={[4, 4, 0, 0]} maxBarSize={32}>
             {data.map((entry, index) => {
-              let fill = '#84B3CE';
+              let fill = '#00B3DD';
               if (entry.spent > entry.limit && entry.limit > 0) {
                 fill = '#B92E2E'; // Exceeded limit
               } else if (entry.percentUsed >= 80) {
