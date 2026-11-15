@@ -1080,7 +1080,7 @@ export const TransactionsPage: React.FC = () => {
           role="dialog"
           aria-modal="true"
           aria-label="Receipt preview"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-deep-blue-950/80 backdrop-blur-sm animate-fadeIn"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/85 backdrop-blur-sm animate-fadeIn"
           onClick={() => setPreviewReceiptUrl(null)}
         >
           <div
@@ -1092,7 +1092,7 @@ export const TransactionsPage: React.FC = () => {
               onClick={() => setPreviewReceiptUrl(null)}
               aria-label="Close receipt preview"
               title="Close receipt preview"
-              className="absolute top-3 right-3 p-1.5 rounded-full bg-deep-blue-950/80 text-white hover:bg-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-200"
+              className="absolute top-3 right-3 p-1.5 rounded-full bg-black/80 text-white hover:bg-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-200"
             >
               <X className="w-4 h-4" />
             </button>

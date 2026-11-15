@@ -181,7 +181,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-tx-title"
-      className="fixed inset-0 z-50 flex items-start justify-center pt-8 sm:pt-14 px-4 pb-8 overflow-y-auto bg-deep-blue-950/60 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-8 sm:pt-14 px-4 pb-8 overflow-y-auto bg-black/50 dark:bg-black/75 backdrop-blur-sm animate-fadeIn"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -415,7 +415,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                   onClick={() => setReceiptImage(null)}
                   aria-label="Remove receipt photo"
                   title="Remove receipt photo"
-                  className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-deep-blue-950/80 text-white hover:bg-status-danger transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-200"
+                  className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-black/80 text-white hover:bg-status-danger transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-200"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
