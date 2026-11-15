@@ -348,7 +348,7 @@ html:not(.dark) .app-ambient { opacity: 0.6; }
 }
 ::view-transition-group(page) { animation-duration: 0.5s; animation-timing-function: var(--spring); }
 ::view-transition-old(page) { animation: vt-page-out 0.22s cubic-bezier(0.4, 0, 1, 1) both; }
-::view-transition-new(page) { animation: vt-page-in 0.5s var(--spring) both; }
+::view-transition-new(page) { animation: vt-page-in 0.4s var(--spring) both; }
 ::view-transition-old(page-title) { animation: vt-fade-out 0.18s ease-in both; }
 ::view-transition-new(page-title) { animation: vt-title-in 0.45s var(--spring) both; }
 /* The active pill glides between items as one shared glass element */
@@ -367,13 +367,13 @@ html:not(.dark) .app-ambient { opacity: 0.6; }
 }
 
 @keyframes vt-page-out {
-  to { opacity: 0; transform: scale(0.985); filter: blur(4px); }
+  to { opacity: 0; transform: scale(0.99); }
 }
 @keyframes vt-page-in {
-  from { opacity: 0; transform: translateY(14px) scale(1.008); filter: blur(6px); }
+  from { opacity: 0; transform: translateY(10px); }
 }
 @keyframes vt-fade-out { to { opacity: 0; } }
-@keyframes vt-title-in { from { opacity: 0; transform: translateY(6px); filter: blur(3px); } }
+@keyframes vt-title-in { from { opacity: 0; transform: translateY(6px); } }
 
 /* Browsers without View Transitions still get a gentle settle */
 @supports not (view-transition-name: none) {
