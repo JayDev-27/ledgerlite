@@ -240,7 +240,7 @@ export const QuickAddModal: React.FC = () => {
                     <span>Detected Transaction Draft</span>
                   </div>
                   {isAiParsing && (
-                    <div className="flex items-center gap-1 text-[11px] text-sky-600 dark:text-sky-300 font-normal lowercase tracking-normal">
+                    <div className="flex items-center gap-1 text-[11px] text-deep-blue-600 dark:text-cream-200 font-normal lowercase tracking-normal">
                       <Loader2 className="w-3 h-3 animate-spin" />
                       <span>refining with Gemini...</span>
                     </div>

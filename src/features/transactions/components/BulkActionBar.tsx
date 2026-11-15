@@ -42,7 +42,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
   return (
     <div className="fixed bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 z-40 bg-deep-blue-950 text-cream-100 px-5 py-3 rounded-2xl shadow-modal border border-deep-blue-800 flex items-center gap-3 sm:gap-4 animate-slideUp text-xs font-semibold">
       <div className="flex items-center gap-2 pr-3 border-r border-deep-blue-800">
-        <span className="tabular-nums font-bold text-sky-300 text-sm">{selectedCount}</span>
+        <span className="tabular-nums font-bold text-cream-100 text-sm">{selectedCount}</span>
         <span className="hidden sm:inline text-cream-200">selected</span>
       </div>
 
@@ -55,7 +55,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
           }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-deep-blue-900 hover:bg-deep-blue-800 text-cream-100 transition-colors"
         >
-          <FolderEdit className="w-3.5 h-3.5 text-sky-400" />
+          <FolderEdit className="w-3.5 h-3.5 text-cream-200" />
           <span>Category</span>
         </button>
 
@@ -106,7 +106,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
           }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-deep-blue-900 hover:bg-deep-blue-800 text-cream-100 transition-colors"
         >
-          <CreditCard className="w-3.5 h-3.5 text-sky-400" />
+          <CreditCard className="w-3.5 h-3.5 text-cream-200" />
           <span>Payment</span>
         </button>
 

@@ -46,7 +46,7 @@ export const RuleLearningModal: React.FC<RuleLearningModalProps> = ({
           Always categorize <strong className="font-semibold text-deep-blue-950 dark:text-cream-100">&ldquo;{merchant}&rdquo;</strong> as{' '}
           <strong className="font-semibold text-deep-blue-950 dark:text-cream-100">{categoryName}</strong>?
           {affectedCount > 0 && (
-            <span className="block mt-1 text-sky-700 dark:text-sky-300 font-medium">
+            <span className="block mt-1 text-deep-blue-700 dark:text-cream-200 font-medium">
               Found {affectedCount} existing transactions from &ldquo;{merchant}&rdquo; that can also be updated.
             </span>
           )}

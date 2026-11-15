@@ -287,7 +287,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
             <div className="space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-cream-100 dark:border-dark-border">
                 <span className="text-xs font-semibold text-deep-blue-900 dark:text-cream-100">
-                  File: <span className="font-mono text-sky-600 dark:text-sky-300">{fileName}</span> ({rawRows.length} rows)
+                  File: <span className="font-mono text-deep-blue-700 dark:text-cream-200">{fileName}</span> ({rawRows.length} rows)
                 </span>
                 <button
                   onClick={() => setStep('upload')}

@@ -748,7 +748,7 @@ export const TransactionsPage: React.FC = () => {
             Showing <strong className="font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">{transactions.length}</strong> of{' '}
             <strong className="font-bold tabular-nums text-deep-blue-900 dark:text-cream-100">{totalCount}</strong> transactions
             {selectedIds.length > 0 && (
-              <span className="ml-2 font-bold text-sky-600 dark:text-sky-300">
+              <span className="ml-2 font-bold text-deep-blue-600 dark:text-cream-200">
                 ({selectedIds.length} selected)
               </span>
             )}

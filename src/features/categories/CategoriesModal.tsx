@@ -407,7 +407,7 @@ export const CategoriesModal: React.FC<CategoriesModalProps> = ({
                       <span
                         className={`text-[10px] px-1.5 py-0.2 rounded font-bold uppercase ${
                           parent.type === 'need'
-                            ? 'bg-sky-100 text-deep-blue-700 dark:bg-sky-950 dark:text-sky-300'
+                            ? 'bg-sky-100 text-deep-blue-700 dark:bg-sky-950 dark:text-cream-100'
                             : parent.type === 'want'
                             ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
                             : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'

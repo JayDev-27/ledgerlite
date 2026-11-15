@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest --test-timeout=25000",
+    "test": "vitest run --test-timeout=25000",
     "test:ui": "vitest --ui --test-timeout=25000",
     "seed": "vite-node src/data/seed-runner.ts",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
