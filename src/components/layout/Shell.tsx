@@ -8,7 +8,7 @@ import { useUiStore } from '@/store/uiStore';
 import { useThemeStore } from '@/store/themeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { repository, getActiveVaultId } from '@/data/repository';
-import { seedDatabase } from '@/data/seed';
+import { seedDatabase, seedCategoriesOnly, purgeDemoData } from '@/data/seed';
 import { generateDueRecurringTransactions } from '@/features/recurring/recurringService';
 import { downloadBackupJson } from '@/lib/backup';
 import { CLOUD_MODE } from '@/lib/auth/firebase';
@@ -52,6 +52,7 @@ export function isQuickAddShortcutAllowed(
 
 // One seed per vault (per signed-in user on the hosted site); shared promise also
 // absorbs StrictMode's double mount, where two concurrent seeds would collide.
+const firstRunOnce = new Map<string, Promise<boolean>>();
 const seedOnce = new Map<string, Promise<Awaited<ReturnType<typeof seedDatabase>> | null>>();
 
 export const Shell: React.FC = () => {
@@ -89,18 +90,36 @@ export const Shell: React.FC = () => {
         // Shared promise: StrictMode double-mounts in dev, and two concurrent
         // seeds would collide on primary keys.
         const vault = getActiveVaultId();
-        if (!seedOnce.has(vault)) {
-          seedOnce.set(
-            vault,
-            repository.isDatabaseEmpty().then((isEmpty) => (isEmpty ? seedDatabase(repository, false) : null))
-          );
-        }
-        const res = await seedOnce.get(vault);
-        if (res) {
-          setSeedNotice(
-            `Welcome to ${APP_NAME}! Loaded ${res.transactionsCount} demo transactions across 6 months.`
-          );
-          setTimeout(() => setSeedNotice(null), 8000);
+        if (CLOUD_MODE) {
+          // Real accounts start empty: categories only, and any demo data from
+          // earlier builds is removed once. Demo data stays opt-in in Settings.
+          if (!firstRunOnce.has(vault)) {
+            firstRunOnce.set(
+              vault,
+              (async () => {
+                await purgeDemoData(repository);
+                const fresh = await seedCategoriesOnly(repository);
+                return fresh || (await repository.countTransactions()) === 0;
+              })()
+            );
+          }
+          if (await firstRunOnce.get(vault)) {
+            setSeedNotice('Your vault is ready. Log your first expense, or import a bank statement from Transactions.');
+          }
+        } else {
+          if (!seedOnce.has(vault)) {
+            seedOnce.set(
+              vault,
+              repository.isDatabaseEmpty().then((isEmpty) => (isEmpty ? seedDatabase(repository, false) : null))
+            );
+          }
+          const res = await seedOnce.get(vault);
+          if (res) {
+            setSeedNotice(
+              `Welcome to ${APP_NAME}! Loaded ${res.transactionsCount} demo transactions across 6 months.`
+            );
+            setTimeout(() => setSeedNotice(null), 8000);
+          }
         }
         setStorageReady(true);
         // Auto-request persistence safely on first load
