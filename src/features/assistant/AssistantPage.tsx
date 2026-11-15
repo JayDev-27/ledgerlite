@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Link } from 'react-router-dom';
 import { ArrowUp, ChevronDown, Check, X, Calculator, BookmarkPlus, ArrowUpRight } from 'lucide-react';
 import clsx from 'clsx';
@@ -224,24 +225,15 @@ export const AssistantPage: React.FC = () => {
     <div className="mx-auto w-full max-w-3xl flex flex-col min-h-[calc(100svh-10rem)] animate-fadeIn">
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4 pb-6">
-        <div role="tablist" aria-label="Assistant view" className="liquid-glass flex items-center p-1 rounded-xl">
-          {(['chat', 'memory'] as const).map((tab) => (
-            <button
-              key={tab}
-              role="tab"
-              aria-selected={activeTab === tab}
-              onClick={() => setActiveTab(tab)}
-              className={clsx(
-                'h-8 px-3.5 rounded-lg text-[13px] font-medium transition-colors',
-                activeTab === tab
-                  ? 'bg-white text-deep-blue-950 shadow-sm dark:bg-transparent dark:liquid-glass-thin dark:text-white'
-                  : 'text-deep-blue-900/50 hover:text-deep-blue-950 dark:text-white/45 dark:hover:text-white'
-              )}
-            >
-              {tab === 'chat' ? 'Chat' : 'Memory'}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          ariaLabel="Assistant view"
+          value={activeTab}
+          options={[
+            { value: 'chat', label: 'Chat' },
+            { value: 'memory', label: 'Memory' },
+          ]}
+          onChange={setActiveTab}
+        />
 
         <div
           className="flex items-center gap-2 text-[12px] text-deep-blue-900/45 dark:text-white/35"

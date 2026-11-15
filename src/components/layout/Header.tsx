@@ -4,6 +4,7 @@ import { Sun, Moon, WifiOff } from 'lucide-react';
 import { useThemeStore } from '@/store/themeStore';
 import { usePwa } from '@/lib/pwa';
 import { BrandGlyph } from '@/components/brand/BrandMark';
+import { NotificationBell } from './NotificationBell';
 
 const ROUTE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/app': { title: 'Overview', subtitle: 'Your month at a glance' },
@@ -49,6 +50,7 @@ export const Header: React.FC = () => {
             </span>
           )}
 
+          <NotificationBell />
           <button
             onClick={toggleTheme}
             title={`Switch to ${nextTheme} mode`}

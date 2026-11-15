@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 import {
   Search,
   Plus,
@@ -490,54 +491,27 @@ export const TransactionsPage: React.FC = () => {
       </div>
 
       {/* Tabs Header (All / Review Queue / Recurring) */}
-      <div className="flex items-center gap-2 border-b border-cream-200 dark:border-dark-border pb-1">
-        <button
-          onClick={() => {
-            setActiveTab('all');
-            setPage(1);
-          }}
-          className={`px-4 py-2 text-xs font-semibold rounded-t-xl transition-colors border-b-2 flex items-center gap-2 ${
-            activeTab === 'all'
-              ? 'border-deep-blue-500 text-deep-blue-900 dark:text-cream-100 bg-white dark:bg-dark-surface'
-              : 'border-transparent text-deep-blue-700/60 dark:text-cream-400 hover:text-deep-blue-900'
-          }`}
-        >
-          <span>All Transactions</span>
-        </button>
-
-        <button
-          onClick={() => {
-            setActiveTab('review');
-            setPage(1);
-          }}
-          className={`px-4 py-2 text-xs font-semibold rounded-t-xl transition-colors border-b-2 flex items-center gap-2 ${
-            activeTab === 'review'
-              ? 'border-deep-blue-500 text-deep-blue-900 dark:text-cream-100 bg-white dark:bg-dark-surface'
-              : 'border-transparent text-deep-blue-700/60 dark:text-cream-400 hover:text-deep-blue-900'
-          }`}
-        >
-          <span>Review Queue</span>
-          {reviewCount > 0 && (
-            <span className="px-2 py-0.2 rounded-full text-[10px] font-semibold bg-amber-500 text-white animate-pulse">
-              {reviewCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => {
-            setActiveTab('recurring');
-            setPage(1);
-          }}
-          className={`px-4 py-2 text-xs font-semibold rounded-t-xl transition-colors border-b-2 flex items-center gap-2 ${
-            activeTab === 'recurring'
-              ? 'border-deep-blue-500 text-deep-blue-900 dark:text-cream-100 bg-white dark:bg-dark-surface'
-              : 'border-transparent text-deep-blue-700/60 dark:text-cream-400 hover:text-deep-blue-900'
-          }`}
-        >
-          <span>Recurring Only</span>
-        </button>
-      </div>
+      <SegmentedControl
+        ariaLabel="Transaction view"
+        className="self-start w-fit"
+        value={activeTab}
+        options={[
+          { value: 'all', label: 'All transactions' },
+          {
+            value: 'review',
+            label: 'Review queue',
+            badge:
+              reviewCount > 0 ? (
+                <span className="ml-0.5 px-1.5 rounded-full text-[10px] font-semibold bg-amber-400 text-black">{reviewCount}</span>
+              ) : undefined,
+          },
+          { value: 'recurring', label: 'Recurring' },
+        ]}
+        onChange={(t) => {
+          setActiveTab(t);
+          setPage(1);
+        }}
+      />
 
       {/* Search & Filter Bar */}
       <div className="p-4 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle space-y-3">

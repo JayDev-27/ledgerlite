@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 import {
   Calendar,
   ChevronLeft,
@@ -62,29 +63,15 @@ export const DashboardPeriodToolbar: React.FC<DashboardPeriodToolbarProps> = ({
     <div className="liquid-glass p-4 rounded-3xl space-y-3">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         {/* Period Type Pills */}
-        <div className="flex items-center gap-1 overflow-x-auto p-1 bg-cream-100 dark:bg-black/25 rounded-2xl">
-          {PERIOD_TYPES.map(({ type, label }) => {
-            const isActive = periodType === type;
-            return (
-              <button
-                key={type}
-                onClick={() => {
-                  if (type === 'custom') {
-                    setShowCustomModal(true);
-                  }
-                  onPeriodTypeChange(type);
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
-                  isActive
-                    ? 'bg-deep-blue-500 text-white shadow-sm dark:bg-transparent dark:liquid-glass-thin dark:text-white'
-                    : 'text-deep-blue-800 dark:text-cream-200 hover:text-deep-blue-900 dark:hover:text-cream-100 hover:bg-cream-200/60 dark:hover:bg-dark-border'
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
+        <SegmentedControl
+          ariaLabel="Period"
+          value={periodType}
+          options={PERIOD_TYPES.map(({ type, label }) => ({ value: type, label }))}
+          onChange={(type) => {
+            if (type === 'custom') setShowCustomModal(true);
+            onPeriodTypeChange(type);
+          }}
+        />
 
         {/* Date Stepper & Comparison Toggle */}
         <div className="flex flex-wrap items-center gap-3">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 import {
   Printer,
   Lightbulb,
@@ -484,29 +485,21 @@ export const ReportsPage: React.FC = () => {
       {/* Screen Toolbar (Hidden during print) */}
       <div className="print:hidden flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-4 sm:p-5 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle">
         {/* Period Type Buttons */}
-        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-cream-100 dark:bg-dark-elevated border border-cream-200 dark:border-dark-border">
-          {PERIOD_BUTTONS.map((btn) => (
-            <button
-              key={btn.type}
-              onClick={() => {
-                setActiveSavedReportId(null);
-                setPeriodType(btn.type);
-                if (btn.type === 'custom') {
-                  setTempCustomStart(customRange.start || currentPeriod.startDate);
-                  setTempCustomEnd(customRange.end || currentPeriod.endDate);
-                  setShowCustomPicker(true);
-                }
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                periodType === btn.type
-                  ? 'bg-deep-blue-500 text-cream-100 shadow-sm dark:bg-white dark:text-black dark:hover:bg-cream-200'
-                  : 'text-deep-blue-800 dark:text-cream-300 hover:text-deep-blue-950 dark:hover:text-white'
-              }`}
-            >
-              {btn.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          ariaLabel="Report period"
+          wrap
+          value={periodType}
+          options={PERIOD_BUTTONS.map((btn) => ({ value: btn.type, label: btn.label }))}
+          onChange={(type) => {
+            setActiveSavedReportId(null);
+            setPeriodType(type);
+            if (type === 'custom') {
+              setTempCustomStart(customRange.start || currentPeriod.startDate);
+              setTempCustomEnd(customRange.end || currentPeriod.endDate);
+              setShowCustomPicker(true);
+            }
+          }}
+        />
 
         {/* Period Range Navigation & Generator */}
         <div className="flex flex-wrap items-center gap-2">
@@ -534,29 +527,16 @@ export const ReportsPage: React.FC = () => {
           )}
 
           {/* AI vs Template Mode Toggle */}
-          <div className="flex items-center rounded-xl bg-cream-50 dark:bg-dark-elevated border border-cream-200 dark:border-dark-border p-0.5 text-[11px] font-semibold">
-            <button
-              onClick={() => setGenerationMethod('ai')}
-              className={`px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${
-                generationMethod === 'ai'
-                  ? 'bg-deep-blue-500 text-cream-100 shadow-xs dark:bg-white dark:text-black dark:hover:bg-cream-200'
-                  : 'text-deep-blue-700 dark:text-cream-300'
-              }`}
-            >
-              <Lightbulb className="w-3 h-3 text-cream-200" />
-              <span>AI</span>
-            </button>
-            <button
-              onClick={() => setGenerationMethod('template')}
-              className={`px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${
-                generationMethod === 'template'
-                  ? 'bg-deep-blue-500 text-cream-100 shadow-xs dark:bg-white dark:text-black dark:hover:bg-cream-200'
-                  : 'text-deep-blue-700 dark:text-cream-300'
-              }`}
-            >
-              <span>Offline</span>
-            </button>
-          </div>
+          <SegmentedControl
+            ariaLabel="Report writer"
+            size="sm"
+            value={generationMethod}
+            options={[
+              { value: 'ai', label: 'AI' },
+              { value: 'template', label: 'Offline' },
+            ]}
+            onChange={(m) => setGenerationMethod(m)}
+          />
 
           {/* Generate Report Button */}
           <button

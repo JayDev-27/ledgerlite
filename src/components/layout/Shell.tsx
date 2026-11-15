@@ -13,10 +13,10 @@ import { generateDueRecurringTransactions } from '@/features/recurring/recurring
 import { downloadBackupJson } from '@/lib/backup';
 import { CLOUD_MODE } from '@/lib/auth/firebase';
 import { secretsAdapter } from '@/lib/secrets';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { prefetchAppPages } from '@/pageLoaders';
+import { useNotifications } from '@/store/notificationStore';
 import { APP_NAME } from '@/constants/app';
-import { Info, Download } from 'lucide-react';
 import { OfflineIndicator } from '@/components/pwa/OfflineIndicator';
 import { PwaInstallBanner } from '@/components/pwa/PwaInstallBanner';
 
@@ -150,6 +150,25 @@ export const Shell: React.FC = () => {
     initStorage();
   }, [initTheme, loadSettings, requestStoragePersistence]);
 
+  // Notices live in the header bell, not as page banners.
+  const { upsert, remove } = useNotifications();
+  useEffect(() => {
+    if (seedNotice)
+      upsert({ id: 'welcome', tone: 'info', title: 'Your vault is ready', body: seedNotice, dismissible: true });
+    else remove('welcome');
+  }, [seedNotice, upsert, remove]);
+  useEffect(() => {
+    if (needsAiKey)
+      upsert({
+        id: 'gemini-key',
+        tone: 'action',
+        title: 'Connect your Gemini key',
+        body: 'It powers the assistant, smart categorisation and written reports. Free from Google AI Studio.',
+        primary: { label: 'Add key', to: '/app/settings' },
+      });
+    else remove('gemini-key');
+  }, [needsAiKey, upsert, remove]);
+
   // Check if weekly backup reminder is due (every 7 days)
   useEffect(() => {
     // The website keeps data in the cloud, so the "browser-only" backup nag doesn't apply.
@@ -179,6 +198,26 @@ export const Shell: React.FC = () => {
       console.error('Backup failed:', err);
     }
   };
+
+  useEffect(() => {
+    if (showBackupReminder)
+      upsert({
+        id: 'backup',
+        tone: 'warning',
+        title: 'Back up your vault',
+        body: 'Your ledger lives only in this browser — a backup keeps it safe if site data is cleared.',
+        primary: { label: 'Back up', onClick: handleBackupNow },
+        secondary: {
+          label: 'Later',
+          onClick: () => {
+            dismissBackupReminder(7);
+            setShowBackupReminder(false);
+          },
+        },
+      });
+    else remove('backup');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showBackupReminder]);
 
   // Global keyboard shortcuts (Press 'N' anywhere to open quick-add)
   useEffect(() => {
@@ -226,67 +265,6 @@ export const Shell: React.FC = () => {
         <PwaInstallBanner />
 
         {/* First-run seed notification toast */}
-        {(seedNotice || showBackupReminder || needsAiKey) && (
-          <div className="print:hidden w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 space-y-2">
-            {seedNotice && (
-              <div role="status" className="flex items-center gap-3 h-11 pl-4 pr-1.5 rounded-xl liquid-glass text-[13px] animate-fadeIn">
-                <Info className="w-4 h-4 shrink-0 text-deep-blue-500 dark:text-white/40" strokeWidth={1.75} />
-                <span className="flex-1 truncate text-deep-blue-900/70 dark:text-white/60">{seedNotice}</span>
-                <button
-                  onClick={() => setSeedNotice(null)}
-                  className="h-8 px-3 rounded-lg text-deep-blue-900/50 dark:text-white/45 hover:text-deep-blue-950 dark:hover:text-white hover:bg-deep-blue-50/60 dark:hover:bg-white/[0.05] transition-colors"
-                >
-                  Dismiss
-                </button>
-              </div>
-            )}
-
-            {needsAiKey && (
-              <div role="status" className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 min-h-11 py-1.5 pl-4 pr-1.5 rounded-xl liquid-glass text-[13px] animate-fadeIn">
-                <span className="w-1.5 h-1.5 rounded-full bg-deep-blue-500 dark:bg-sky-400 shrink-0" aria-hidden="true" />
-                <p className="flex-1 min-w-0 text-deep-blue-900/70 dark:text-white/60">
-                  <span className="text-deep-blue-950 dark:text-white">Connect your Gemini key.</span>{' '}
-                  <span className="hidden md:inline">It powers the assistant, smart categorisation and written reports. Free from Google AI Studio.</span>
-                </p>
-                <Link
-                  to="/app/settings"
-                  className="ml-auto shrink-0 flex items-center h-8 px-3 rounded-lg font-medium bg-deep-blue-950 text-white dark:bg-white dark:text-black hover:opacity-90 transition-opacity"
-                >
-                  Add key
-                </Link>
-              </div>
-            )}
-
-            {showBackupReminder && (
-              <div role="status" className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 min-h-11 py-1.5 pl-4 pr-1.5 rounded-xl liquid-glass text-[13px] animate-fadeIn">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-300 shrink-0" aria-hidden="true" />
-                <p className="flex-1 min-w-0 text-deep-blue-900/70 dark:text-white/60">
-                  <span className="text-deep-blue-950 dark:text-white">Back up your vault.</span>{' '}
-                  <span className="hidden md:inline">Your ledger lives only in this browser — a backup keeps it safe if site data is cleared.</span>
-                </p>
-                <div className="flex items-center gap-1 shrink-0 ml-auto">
-                  <button
-                    onClick={() => {
-                      dismissBackupReminder(7);
-                      setShowBackupReminder(false);
-                    }}
-                    className="h-8 px-3 rounded-lg text-deep-blue-900/50 dark:text-white/45 hover:text-deep-blue-950 dark:hover:text-white hover:bg-deep-blue-50/60 dark:hover:bg-white/[0.05] transition-colors"
-                  >
-                    Later
-                  </button>
-                  <button
-                    onClick={handleBackupNow}
-                    className="flex items-center gap-1.5 h-8 px-3 rounded-lg font-medium bg-deep-blue-950 text-white dark:bg-white dark:text-black hover:opacity-90 transition-opacity"
-                  >
-                    <Download className="w-3.5 h-3.5" strokeWidth={2} />
-                    Back up
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         <main id="main-content" tabIndex={-1} className="relative flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto focus:outline-none">
           {storageReady ? (
             <div key={location.pathname} className="vt-page">
