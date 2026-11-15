@@ -631,7 +631,7 @@ export const LandingPage: React.FC = () => {
         >
           <p
             aria-hidden="true"
-            className="yours font-black uppercase text-[clamp(120px,26vw,420px)] leading-[0.78] tracking-[-0.05em] whitespace-nowrap text-transparent [-webkit-text-stroke:1.5px_rgba(255,255,255,0.22)] select-none"
+            className="yours font-black uppercase text-[clamp(120px,26vw,420px)] leading-[0.78] tracking-[-0.05em] whitespace-nowrap text-dark-bg [-webkit-text-stroke:3px_rgba(255,255,255,0.22)] [paint-order:stroke_fill] select-none"
           >
             Yours. Yours.
           </p>
