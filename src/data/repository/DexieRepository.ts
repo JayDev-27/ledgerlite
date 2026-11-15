@@ -46,20 +46,28 @@ export class DexieRepository implements Repository {
         filter.minAmount !== undefined ||
         filter.maxAmount !== undefined ||
         filter.recurringOnly ||
+        filter.needsReviewOnly ||
         filter.tags?.length ||
         (filter.search && filter.search.trim().length > 0));
+
+    const normalizedStart = filter?.startDate && /^\d{4}-\d{2}-\d{2}$/.test(filter.startDate)
+      ? `${filter.startDate}T00:00:00.000Z`
+      : filter?.startDate;
+    const normalizedEnd = filter?.endDate && /^\d{4}-\d{2}-\d{2}$/.test(filter.endDate)
+      ? `${filter.endDate}T23:59:59.999Z`
+      : filter?.endDate;
 
     // Fast path: Indexed queries for 20,000+ transactions without in-memory allocation
     if (!hasComplexFilter && sortBy === 'date') {
       let query;
-      if (filter?.startDate && filter?.endDate) {
+      if (normalizedStart && normalizedEnd) {
         query = this.db.transactions
           .where('date')
-          .between(filter.startDate, filter.endDate, true, true);
-      } else if (filter?.startDate) {
-        query = this.db.transactions.where('date').aboveOrEqual(filter.startDate);
-      } else if (filter?.endDate) {
-        query = this.db.transactions.where('date').belowOrEqual(filter.endDate);
+          .between(normalizedStart, normalizedEnd, true, true);
+      } else if (normalizedStart) {
+        query = this.db.transactions.where('date').aboveOrEqual(normalizedStart);
+      } else if (normalizedEnd) {
+        query = this.db.transactions.where('date').belowOrEqual(normalizedEnd);
       } else {
         query = this.db.transactions.orderBy('date');
       }
@@ -82,11 +90,11 @@ export class DexieRepository implements Repository {
     let items = await collection.toArray();
 
     if (filter) {
-      if (filter.startDate) {
-        items = items.filter((tx) => tx.date >= filter.startDate!);
+      if (normalizedStart) {
+        items = items.filter((tx) => tx.date >= normalizedStart);
       }
-      if (filter.endDate) {
-        items = items.filter((tx) => tx.date <= filter.endDate!);
+      if (normalizedEnd) {
+        items = items.filter((tx) => tx.date <= normalizedEnd);
       }
       if (filter.categoryIds && filter.categoryIds.length > 0) {
         const catSet = new Set(filter.categoryIds);
@@ -107,6 +115,9 @@ export class DexieRepository implements Repository {
       }
       if (filter.recurringOnly) {
         items = items.filter((tx) => !!tx.recurringId);
+      }
+      if (filter.needsReviewOnly) {
+        items = items.filter((tx) => tx.confidence !== undefined && tx.confidence < 0.7);
       }
       if (filter.tags && filter.tags.length > 0) {
         items = items.filter((tx) =>
@@ -169,9 +180,11 @@ export class DexieRepository implements Repository {
     startDate: string,
     endDate: string
   ): Promise<Transaction[]> {
+    const s = /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? `${startDate}T00:00:00.000Z` : startDate;
+    const e = /^\d{4}-\d{2}-\d{2}$/.test(endDate) ? `${endDate}T23:59:59.999Z` : endDate;
     return this.db.transactions
       .where('date')
-      .between(startDate, endDate, true, true)
+      .between(s, e, true, true)
       .toArray();
   }
 
@@ -211,6 +224,34 @@ export class DexieRepository implements Repository {
 
   async deleteTransaction(id: string): Promise<void> {
     await this.db.transactions.delete(id);
+  }
+
+  async bulkDeleteTransactions(ids: string[]): Promise<void> {
+    await this.db.transactions.bulkDelete(ids);
+  }
+
+  async bulkUpdateTransactions(
+    ids: string[],
+    updates: Partial<Transaction>
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    await this.db.transaction('rw', this.db.transactions, async () => {
+      for (const id of ids) {
+        const existing = await this.db.transactions.get(id);
+        if (existing) {
+          await this.db.transactions.put({
+            ...existing,
+            ...updates,
+            id,
+            updatedAt: now,
+          });
+        }
+      }
+    });
+  }
+
+  async restoreTransaction(tx: Transaction): Promise<void> {
+    await this.db.transactions.put(tx);
   }
 
   async bulkCreateTransactions(
@@ -261,10 +302,123 @@ export class DexieRepository implements Repository {
     return updated;
   }
 
-  async deleteCategory(id: string): Promise<void> {
-    // Delete category and any subcategories that point to it
-    await this.db.categories.where('parentId').equals(id).delete();
-    await this.db.categories.delete(id);
+  async deleteCategory(id: string, reassignToId?: string): Promise<void> {
+    const targetCatId = reassignToId || 'cat_misc';
+    await this.db.transaction(
+      'rw',
+      [this.db.categories, this.db.transactions, this.db.rules],
+      async () => {
+        // 1. Reassign transactions where categoryId === id
+        const txsToReassign = await this.db.transactions.where('categoryId').equals(id).toArray();
+        for (const tx of txsToReassign) {
+          await this.db.transactions.update(tx.id, {
+            categoryId: targetCatId,
+            subcategoryId: null,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+
+        // 2. Clear subcategoryId on transactions where subcategoryId === id
+        const subTxsToClear = await this.db.transactions.where('subcategoryId').equals(id).toArray();
+        for (const tx of subTxsToClear) {
+          await this.db.transactions.update(tx.id, {
+            subcategoryId: null,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+
+        // 3. Reassign rules where categoryId === id
+        const rulesToReassign = await this.db.rules.where('categoryId').equals(id).toArray();
+        for (const r of rulesToReassign) {
+          await this.db.rules.update(r.id, {
+            categoryId: targetCatId,
+            subcategoryId: null,
+          });
+        }
+
+        // 4. Clear subcategoryId on rules where subcategoryId === id
+        const subRulesToClear = await this.db.rules.filter((r) => r.subcategoryId === id).toArray();
+        for (const r of subRulesToClear) {
+          await this.db.rules.update(r.id, {
+            subcategoryId: null,
+          });
+        }
+
+        // 5. If this is a parent category, find and clean up all child subcategories
+        const childSubcategories = await this.db.categories.where('parentId').equals(id).toArray();
+        const childSubIds = new Set(childSubcategories.map((c) => c.id));
+        for (const child of childSubcategories) {
+          const childTxs = await this.db.transactions.where('subcategoryId').equals(child.id).toArray();
+          for (const ctx of childTxs) {
+            await this.db.transactions.update(ctx.id, {
+              subcategoryId: null,
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        }
+        const childRules = await this.db.rules.filter((r) => r.subcategoryId !== null && r.subcategoryId !== undefined && childSubIds.has(r.subcategoryId)).toArray();
+        for (const cr of childRules) {
+          await this.db.rules.update(cr.id, {
+            subcategoryId: null,
+          });
+        }
+
+        // Delete subcategories that point to this parent
+        await this.db.categories.where('parentId').equals(id).delete();
+
+        // Delete the category itself
+        await this.db.categories.delete(id);
+      }
+    );
+  }
+
+  async mergeCategories(sourceId: string, targetId: string): Promise<void> {
+    if (sourceId === targetId) return;
+
+    await this.db.transaction(
+      'rw',
+      [this.db.categories, this.db.transactions, this.db.rules],
+      async () => {
+        // Reassign transactions from source to target
+        const txsToReassign = await this.db.transactions.where('categoryId').equals(sourceId).toArray();
+        for (const tx of txsToReassign) {
+          await this.db.transactions.update(tx.id, {
+            categoryId: targetId,
+            subcategoryId: null,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+
+        // Also check if sourceId was used as a subcategoryId
+        const subTxsToClear = await this.db.transactions.where('subcategoryId').equals(sourceId).toArray();
+        for (const tx of subTxsToClear) {
+          await this.db.transactions.update(tx.id, {
+            subcategoryId: null,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+
+        // Reassign subcategories of source to target
+        const subcats = await this.db.categories.where('parentId').equals(sourceId).toArray();
+        for (const sub of subcats) {
+          await this.db.categories.update(sub.id, { parentId: targetId });
+        }
+
+        // Reassign rules pointing to source
+        const rules = await this.db.rules.where('categoryId').equals(sourceId).toArray();
+        for (const r of rules) {
+          await this.db.rules.update(r.id, { categoryId: targetId, subcategoryId: null });
+        }
+
+        const subRules = await this.db.rules.filter((r) => r.subcategoryId === sourceId).toArray();
+        for (const r of subRules) {
+          await this.db.rules.update(r.id, { subcategoryId: null });
+        }
+
+        // Delete source category
+        await this.db.categories.delete(sourceId);
+      }
+    );
   }
 
   async bulkCreateCategories(categories: Category[]): Promise<void> {

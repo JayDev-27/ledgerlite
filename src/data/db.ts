@@ -29,7 +29,7 @@ export class FinanceDatabase extends Dexie {
       transactions: 'id, date, merchant, categoryId, subcategoryId, paymentMethod, recurringId, source, createdAt',
       categories: 'id, name, parentId, type, order',
       budgets: 'id, &month',
-      rules: 'id, categoryId, hits',
+      rules: 'id, categoryId, subcategoryId, hits',
       recurring: 'id, cadence, nextDue, active',
       memory: 'id, kind, createdAt, approvedAt',
       reports: 'id, period, createdAt',

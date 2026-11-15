@@ -69,15 +69,15 @@ describe('DexieRepository with IndexedDB', () => {
   it('filters transactions by date range, payment method, and search keyword', async () => {
     await seedDatabase(repo, false);
 
-    // Date range filter
+    // Date range filter with pure YYYY-MM-DD strings (must include full end-of-day transactions)
     const octTxs = await repo.getTransactions({
       startDate: '2026-10-01',
-      endDate: '2026-10-31T23:59:59',
+      endDate: '2026-10-31',
     });
     expect(octTxs.data.length).toBeGreaterThan(0);
     for (const tx of octTxs.data) {
-      expect(tx.date >= '2026-10-01').toBe(true);
-      expect(tx.date <= '2026-10-31T23:59:59').toBe(true);
+      expect(tx.date >= '2026-10-01T00:00:00.000Z').toBe(true);
+      expect(tx.date <= '2026-10-31T23:59:59.999Z').toBe(true);
     }
 
     // Payment method filter

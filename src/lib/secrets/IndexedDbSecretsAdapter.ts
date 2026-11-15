@@ -1,0 +1,51 @@
+import { repository } from '@/data/repository';
+import { GoogleGenAI } from '@google/genai';
+import type { SecretsAdapter } from './types';
+
+export class IndexedDbSecretsAdapter implements SecretsAdapter {
+  async getApiKey(): Promise<string | undefined> {
+    const stored = await repository.getSetting<string>('geminiApiKey');
+    if (stored && typeof stored === 'string' && stored.trim().length > 0) {
+      return stored.trim();
+    }
+    const metaEnv = (import.meta as unknown as { env?: Record<string, string> }).env;
+    const envKey = metaEnv?.VITE_GEMINI_API_KEY;
+    if (envKey && typeof envKey === 'string' && envKey.trim().length > 0) {
+      return envKey.trim();
+    }
+    return undefined;
+  }
+
+  async setApiKey(key: string): Promise<void> {
+    const trimmed = key.trim();
+    await repository.setSetting('geminiApiKey', trimmed);
+  }
+
+  async clearApiKey(): Promise<void> {
+    await repository.setSetting('geminiApiKey', '');
+  }
+
+  async testConnection(key?: string): Promise<{ success: boolean; message: string }> {
+    const keyToTest = key !== undefined ? key.trim() : (await this.getApiKey());
+    if (!keyToTest) {
+      return { success: false, message: 'No API key provided or configured.' };
+    }
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: keyToTest });
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.5-flash-lite',
+        contents: 'ping',
+      });
+      if (response && response.text) {
+        return { success: true, message: 'Successfully connected to Gemini API.' };
+      }
+      return { success: true, message: 'Connected to Gemini API.' };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, message: `Connection test failed: ${msg}` };
+    }
+  }
+}
+
+export const secretsAdapter = new IndexedDbSecretsAdapter();

@@ -21,6 +21,7 @@ export interface TransactionFilter {
   maxAmount?: number;
   tags?: string[];
   recurringOnly?: boolean;
+  needsReviewOnly?: boolean;
 }
 
 export interface PaginationOptions {
@@ -47,6 +48,9 @@ export interface Repository {
   createTransaction(tx: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<Transaction>;
   updateTransaction(id: string, updates: Partial<Transaction>): Promise<Transaction>;
   deleteTransaction(id: string): Promise<void>;
+  bulkDeleteTransactions(ids: string[]): Promise<void>;
+  bulkUpdateTransactions(ids: string[], updates: Partial<Transaction>): Promise<void>;
+  restoreTransaction(tx: Transaction): Promise<void>;
   bulkCreateTransactions(txs: Array<Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }>): Promise<Transaction[]>;
   countTransactions(): Promise<number>;
 
@@ -55,7 +59,8 @@ export interface Repository {
   getCategory(id: string): Promise<Category | undefined>;
   createCategory(category: Category): Promise<Category>;
   updateCategory(id: string, updates: Partial<Category>): Promise<Category>;
-  deleteCategory(id: string): Promise<void>;
+  deleteCategory(id: string, reassignToId?: string): Promise<void>;
+  mergeCategories(sourceId: string, targetId: string): Promise<void>;
   bulkCreateCategories(categories: Category[]): Promise<void>;
 
   // Budgets

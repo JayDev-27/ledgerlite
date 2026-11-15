@@ -9,6 +9,7 @@ import { useThemeStore } from '@/store/themeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { repository } from '@/data/repository';
 import { seedDatabase } from '@/data/seed';
+import { generateDueRecurringTransactions } from '@/features/recurring/recurringService';
 import { APP_NAME } from '@/constants/app';
 import { Sparkles, AlertTriangle, Download } from 'lucide-react';
 
@@ -37,6 +38,12 @@ export const Shell: React.FC = () => {
         }
         // Auto-request persistence safely on first load
         await requestStoragePersistence();
+
+        // Auto-check and generate due recurring transactions (rent, subscriptions, EMIs)
+        const recurringRes = await generateDueRecurringTransactions(repository);
+        if (recurringRes.generatedCount > 0) {
+          window.dispatchEvent(new CustomEvent('transactions-updated'));
+        }
       } catch (err) {
         console.error('Database initialization error:', err);
       }

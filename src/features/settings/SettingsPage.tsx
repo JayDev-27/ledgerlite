@@ -12,20 +12,51 @@ import {
 } from 'lucide-react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { repository } from '@/data/repository';
+import { secretsAdapter } from '@/lib/secrets';
 import { seedDatabase } from '@/data/seed';
 import { APP_NAME, APP_TAGLINE, APP_VERSION } from '@/constants/app';
 
 export const SettingsPage: React.FC = () => {
   const { settings, updateSettings, requestStoragePersistence } = useSettingsStore();
-  const [apiKeyInput, setApiKeyInput] = useState(settings.geminiApiKey || '');
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [isTestingKey, setIsTestingKey] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
 
+  // Load API key securely on mount
+  React.useEffect(() => {
+    const loadKey = async () => {
+      const key = await secretsAdapter.getApiKey();
+      if (key) {
+        setApiKeyInput(key);
+      }
+    };
+    loadKey();
+  }, []);
+
   const handleSaveApiKey = async (e: React.FormEvent) => {
     e.preventDefault();
+    await secretsAdapter.setApiKey(apiKeyInput.trim());
     await updateSettings({ geminiApiKey: apiKeyInput.trim() });
-    setStatusMsg({ type: 'success', text: 'Gemini API key saved securely in browser storage.' });
+    setStatusMsg({ type: 'success', text: 'Gemini API key saved securely via SecretsAdapter.' });
     setTimeout(() => setStatusMsg(null), 4000);
+  };
+
+  const handleTestConnection = async () => {
+    setIsTestingKey(true);
+    setTestResult(null);
+    try {
+      const result = await secretsAdapter.testConnection(apiKeyInput.trim());
+      setTestResult(result);
+    } catch (err: unknown) {
+      setTestResult({
+        success: false,
+        message: err instanceof Error ? err.message : 'Unknown connection error',
+      });
+    } finally {
+      setIsTestingKey(false);
+    }
   };
 
   const handlePersistStorage = async () => {
@@ -273,7 +304,7 @@ export const SettingsPage: React.FC = () => {
             <label className="block text-xs font-medium text-deep-blue-800 dark:text-cream-200 mb-1">
               Google AI Studio API Key
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="password"
                 value={apiKeyInput}
@@ -281,15 +312,50 @@ export const SettingsPage: React.FC = () => {
                 placeholder="AIzaSy..."
                 className="flex-1 px-3 py-2 text-xs rounded-lg bg-cream-50 dark:bg-dark-elevated border border-cream-200 dark:border-dark-border text-deep-blue-900 dark:text-cream-100 focus:outline-none focus:ring-2 focus:ring-sky-400 font-mono"
               />
-              <button
-                type="submit"
-                className="px-4 py-2 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold transition-colors"
-              >
-                Save Key
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-deep-blue-500 hover:bg-deep-blue-600 text-cream-100 text-xs font-semibold transition-colors flex-shrink-0"
+                >
+                  Save Key
+                </button>
+                <button
+                  type="button"
+                  onClick={handleTestConnection}
+                  disabled={isTestingKey || !apiKeyInput.trim()}
+                  className="px-3.5 py-2 rounded-lg border border-deep-blue-300 dark:border-dark-border hover:bg-cream-100 dark:hover:bg-dark-elevated text-deep-blue-900 dark:text-cream-100 text-xs font-semibold disabled:opacity-50 transition-colors flex-shrink-0 flex items-center gap-1.5"
+                >
+                  {isTestingKey ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Testing...</span>
+                    </>
+                  ) : (
+                    <span>Test Connection</span>
+                  )}
+                </button>
+              </div>
             </div>
-            <p className="text-[11px] text-deep-blue-600/70 dark:text-cream-400 mt-1">
-              Get a free API key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="underline text-deep-blue-600 dark:text-cream-200">aistudio.google.com</a>. Stored purely in local browser memory.
+
+            {testResult && (
+              <div
+                className={`mt-2 p-2.5 rounded-lg text-xs font-medium flex items-center gap-2 ${
+                  testResult.success
+                    ? 'bg-status-success-bg text-status-success border border-status-success/30'
+                    : 'bg-status-danger-bg text-status-danger border border-status-danger/30'
+                }`}
+              >
+                {testResult.success ? (
+                  <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                )}
+                <span>{testResult.message}</span>
+              </div>
+            )}
+
+            <p className="text-[11px] text-deep-blue-600/70 dark:text-cream-400 mt-1.5">
+              Protected by SecretsAdapter. Stored locally in browser settings (IndexedDB / keychain ready).
             </p>
           </div>
         </form>

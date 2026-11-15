@@ -7,10 +7,12 @@ import {
   CreditCard,
   Tag,
   PlusCircle,
+  Loader2,
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { repository } from '@/data/repository';
 import { parseExpenseTextLocally, ParsedDraft } from '@/lib/quickAddParser';
+import { parseQuickAddExpense } from '@/lib/quickAddAi';
 import { formatCurrency } from '@/lib/formatters';
 import { DEFAULT_CATEGORIES } from '@/data/categories';
 import { PaymentMethod } from '@/types';
@@ -19,6 +21,7 @@ export const QuickAddModal: React.FC = () => {
   const { isQuickAddOpen, closeQuickAdd } = useUiStore();
   const [inputText, setInputText] = useState('');
   const [draft, setDraft] = useState<ParsedDraft | null>(null);
+  const [isAiParsing, setIsAiParsing] = useState(false);
   const [mode, setMode] = useState<'quick' | 'manual'>('quick');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -31,6 +34,7 @@ export const QuickAddModal: React.FC = () => {
   const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0] || '');
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (isQuickAddOpen) {
@@ -46,18 +50,39 @@ export const QuickAddModal: React.FC = () => {
     }
     return () => {
       document.body.style.overflow = '';
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
   }, [isQuickAddOpen]);
 
-  // Handle parsing on text change
+  // Handle parsing on text change with instant local + debounced AI refinement
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const text = e.target.value;
     setInputText(text);
+
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+
     if (text.trim().length > 2) {
-      const parsed = parseExpenseTextLocally(text);
-      setDraft(parsed);
+      // 1. Instant local parse
+      const localParsed = parseExpenseTextLocally(text);
+      setDraft(localParsed);
+
+      // 2. Debounced AI enhancement
+      debounceTimerRef.current = setTimeout(async () => {
+        try {
+          setIsAiParsing(true);
+          const aiParsed = await parseQuickAddExpense(text);
+          if (aiParsed && aiParsed.amount) {
+            setDraft(aiParsed);
+          }
+        } catch {
+          // Keep local draft if AI fails
+        } finally {
+          setIsAiParsing(false);
+        }
+      }, 450);
     } else {
       setDraft(null);
+      setIsAiParsing(false);
     }
   };
 
@@ -209,9 +234,17 @@ export const QuickAddModal: React.FC = () => {
             {/* Parsed Draft Confirmation Card */}
             {draft && draft.amount && (
               <div className="p-4 rounded-xl bg-cream-50/80 dark:bg-dark-elevated/80 border border-sky-200 dark:border-dark-border space-y-3">
-                <div className="text-xs font-semibold text-deep-blue-700 dark:text-cream-300 flex items-center gap-1.5 uppercase tracking-wider">
-                  <Sparkles className="w-3.5 h-3.5 text-deep-blue-600 dark:text-cream-300" />
-                  Detected Transaction Draft
+                <div className="flex items-center justify-between text-xs font-semibold text-deep-blue-700 dark:text-cream-300 uppercase tracking-wider">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-deep-blue-600 dark:text-cream-300" />
+                    <span>Detected Transaction Draft</span>
+                  </div>
+                  {isAiParsing && (
+                    <div className="flex items-center gap-1 text-[11px] text-sky-600 dark:text-sky-300 font-normal lowercase tracking-normal">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>refining with Gemini...</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-baseline justify-between">
