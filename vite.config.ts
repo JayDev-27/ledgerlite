@@ -5,6 +5,10 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  define: {
+    // True only for Vercel builds: switches the app into hosted (cloud vault) mode.
+    __LEDGERLITE_HOSTED__: JSON.stringify(process.env.VERCEL === '1'),
+  },
   plugins: [
     react(),
     VitePWA({

@@ -1,5 +1,6 @@
 import type { FirebaseApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
+import { HOSTED_FIREBASE_CONFIG } from '@/config/hostedFirebase';
 
 /**
  * Firebase is optional. When the VITE_FIREBASE_* variables are present the app
@@ -7,6 +8,7 @@ import type { Auth } from 'firebase/auth';
  * back to the on-device local account adapter so the app still works offline.
  */
 interface FirebaseEnv {
+  databaseId?: string;
   apiKey?: string;
   authDomain?: string;
   projectId?: string;
@@ -15,11 +17,16 @@ interface FirebaseEnv {
 
 function readEnv(): FirebaseEnv {
   const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {};
+  const hosted = typeof __LEDGERLITE_HOSTED__ !== 'undefined' && __LEDGERLITE_HOSTED__;
+  if (!env.VITE_FIREBASE_API_KEY && hosted) {
+    return { ...HOSTED_FIREBASE_CONFIG };
+  }
   return {
     apiKey: env.VITE_FIREBASE_API_KEY,
     authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
     projectId: env.VITE_FIREBASE_PROJECT_ID,
     appId: env.VITE_FIREBASE_APP_ID,
+    databaseId: env.VITE_FIREBASE_DATABASE_ID,
   };
 }
 
@@ -62,4 +69,9 @@ export function getFirebaseAuth(): Promise<Auth> {
     })();
   }
   return authPromise;
+}
+
+/** Named Firestore database for the vault, if any. */
+export function getFirestoreDatabaseId(): string | undefined {
+  return readEnv().databaseId || undefined;
 }

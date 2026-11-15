@@ -11,7 +11,7 @@ import Dexie, { type Table } from 'dexie';
 import type { Firestore, WriteBatch } from 'firebase/firestore';
 import { FinanceDatabase } from '@/data/db';
 import { DexieRepository, setActiveRepository, localRepository } from '@/data/repository';
-import { getFirebaseApp } from '@/lib/auth/firebase';
+import { getFirebaseApp, getFirestoreDatabaseId } from '@/lib/auth/firebase';
 
 const TABLES = ['transactions', 'categories', 'budgets', 'rules', 'recurring', 'memory', 'reports', 'aiUsage', 'settings'] as const;
 type TableName = (typeof TABLES)[number];
@@ -196,7 +196,9 @@ export async function activateCloudVault(uid: string): Promise<void> {
   await deactivateCloudVault();
 
   const [app, fsMod] = await Promise.all([getFirebaseApp(), import('firebase/firestore')]);
-  const fs = fsMod.getFirestore(app);
+  // Optional named database (keeps LedgerLite isolated inside a shared Firebase project)
+  const dbId = getFirestoreDatabaseId();
+  const fs = dbId ? fsMod.getFirestore(app, dbId) : fsMod.getFirestore(app);
 
   await Dexie.delete(cacheName(uid)); // never trust a stale cache — Firestore is the truth
   const repo = new CloudSyncedRepository(new FinanceDatabase(cacheName(uid)), fs, fsMod, uid);
