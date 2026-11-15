@@ -113,6 +113,10 @@ export interface ReportItem {
     recommendations?: string[];
     anomalies?: Array<{ merchant: string; amount: number; reason: string }>;
     rawPack?: Record<string, unknown>;
+    periodType?: string;
+    periodLabel?: string;
+    pack?: unknown;
+    content?: unknown;
   };
   createdAt: string;
 }

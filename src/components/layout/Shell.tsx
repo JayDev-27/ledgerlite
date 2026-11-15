@@ -10,6 +10,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { repository } from '@/data/repository';
 import { seedDatabase } from '@/data/seed';
 import { generateDueRecurringTransactions } from '@/features/recurring/recurringService';
+import { downloadBackupJson } from '@/lib/backup';
 import { APP_NAME } from '@/constants/app';
 import { Sparkles, AlertTriangle, Download } from 'lucide-react';
 
@@ -72,14 +73,7 @@ export const Shell: React.FC = () => {
 
   const handleBackupNow = async () => {
     try {
-      const data = await repository.exportAll();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${APP_NAME.toLowerCase()}_backup_${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadBackupJson();
       await recordBackup();
       setShowBackupReminder(false);
     } catch (err) {
@@ -130,7 +124,7 @@ export const Shell: React.FC = () => {
 
         {/* First-run seed notification toast */}
         {seedNotice && (
-          <div className="mx-4 sm:mx-6 mt-4 p-3.5 rounded-xl bg-deep-blue-500 text-cream-100 text-sm flex items-center justify-between shadow-card animate-fadeIn">
+          <div className="print:hidden mx-4 sm:mx-6 mt-4 p-3.5 rounded-xl bg-deep-blue-500 text-cream-100 text-sm flex items-center justify-between shadow-card animate-fadeIn">
             <div className="flex items-center gap-2.5">
               <Sparkles className="w-4 h-4 text-cream-200 flex-shrink-0" />
               <span>{seedNotice}</span>
@@ -146,7 +140,7 @@ export const Shell: React.FC = () => {
 
         {/* Weekly Backup Reminder Banner */}
         {showBackupReminder && (
-          <div className="mx-4 sm:mx-6 mt-4 p-3.5 rounded-xl bg-amber-50 dark:bg-dark-elevated border border-amber-200 dark:border-amber-900/50 text-amber-950 dark:text-cream-100 text-xs sm:text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm animate-fadeIn">
+          <div className="print:hidden mx-4 sm:mx-6 mt-4 p-3.5 rounded-xl bg-amber-50 dark:bg-dark-elevated border border-amber-200 dark:border-amber-900/50 text-amber-950 dark:text-cream-100 text-xs sm:text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm animate-fadeIn">
             <div className="flex items-start sm:items-center gap-2.5">
               <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5 sm:mt-0" />
               <div>

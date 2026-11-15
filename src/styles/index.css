@@ -75,3 +75,69 @@
     transform: translateX(100%);
   }
 }
+
+/* Print-optimized styling for PDF export and A4 printing */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 12mm 12mm 12mm;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #0b2433 !important;
+    font-size: 11pt !important;
+  }
+
+  /* Hide navigation, sidebar, headers, modals, floating buttons, toasts */
+  header,
+  aside,
+  nav,
+  .print\:hidden,
+  button,
+  input,
+  select,
+  .mobile-tabs,
+  .recharts-tooltip-wrapper {
+    display: none !important;
+  }
+
+  /* Ensure SVG chart containers don't collapse in print */
+  .recharts-responsive-container {
+    min-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Ensure card containers don't break awkwardly across pages */
+  .rounded-card,
+  .print-break-avoid,
+  table,
+  tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* High contrast table borders for clean monochrome or color print */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th, td {
+    border-bottom: 1px solid #d1d5db !important;
+    padding: 6px 8px !important;
+  }
+
+  /* Expand full width container */
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Force background colors on badges/fills if user enables background graphics */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

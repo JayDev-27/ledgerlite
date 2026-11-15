@@ -14,6 +14,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { repository } from '@/data/repository';
 import { secretsAdapter } from '@/lib/secrets';
 import { seedDatabase } from '@/data/seed';
+import { downloadBackupJson, restoreBackupPayload } from '@/lib/backup';
 import { APP_NAME, APP_TAGLINE, APP_VERSION } from '@/constants/app';
 
 export const SettingsPage: React.FC = () => {
@@ -74,16 +75,9 @@ export const SettingsPage: React.FC = () => {
 
   const handleExportJson = async () => {
     try {
-      const data = await repository.exportAll();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${APP_NAME.toLowerCase()}_backup_${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadBackupJson();
       await updateSettings({ lastBackupDate: new Date().toISOString() });
-      setStatusMsg({ type: 'success', text: 'Backup exported to JSON file.' });
+      setStatusMsg({ type: 'success', text: 'Backup exported successfully (all 9 tables).' });
     } catch (err) {
       console.error(err);
       setStatusMsg({ type: 'error', text: 'Failed to export backup.' });
@@ -98,12 +92,16 @@ export const SettingsPage: React.FC = () => {
     reader.onload = async (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
-        await repository.importAll(json);
-        setStatusMsg({ type: 'success', text: 'Data restored successfully! Reloading...' });
+        const result = await restoreBackupPayload(json);
+        setStatusMsg({
+          type: 'success',
+          text: `Data restored successfully! Restored ${result.summary?.transactionsCount ?? 0} transactions. Reloading...`,
+        });
         setTimeout(() => window.location.reload(), 1500);
       } catch (err) {
         console.error(err);
-        setStatusMsg({ type: 'error', text: 'Invalid JSON backup file.' });
+        const msg = err instanceof Error ? err.message : 'Invalid JSON backup file.';
+        setStatusMsg({ type: 'error', text: msg });
       }
     };
     reader.readAsText(file);

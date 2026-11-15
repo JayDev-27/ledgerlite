@@ -180,8 +180,8 @@ export class DexieRepository implements Repository {
     startDate: string,
     endDate: string
   ): Promise<Transaction[]> {
-    const s = /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? `${startDate}T00:00:00.000Z` : startDate;
-    const e = /^\d{4}-\d{2}-\d{2}$/.test(endDate) ? `${endDate}T23:59:59.999Z` : endDate;
+    const s = startDate.slice(0, 10);
+    const e = endDate.includes('T') ? endDate : `${endDate.slice(0, 10)}T23:59:59.999Z`;
     return this.db.transactions
       .where('date')
       .between(s, e, true, true)
@@ -277,7 +277,8 @@ export class DexieRepository implements Repository {
   // -------------------------------------------------------------
 
   async getCategories(): Promise<Category[]> {
-    return this.db.categories.orderBy('order').toArray();
+    const all = await this.db.categories.toArray();
+    return all.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
   }
 
   async getCategory(id: string): Promise<Category | undefined> {
@@ -715,6 +716,7 @@ export class DexieRepository implements Repository {
       recurring,
       memory,
       reports,
+      aiUsage,
       settings,
     ] = await Promise.all([
       this.db.transactions.toArray(),
@@ -724,11 +726,13 @@ export class DexieRepository implements Repository {
       this.db.recurring.toArray(),
       this.db.memory.toArray(),
       this.db.reports.toArray(),
+      this.db.aiUsage.toArray(),
       this.db.settings.toArray(),
     ]);
 
     return {
       version: 1,
+      appName: 'LedgerLite',
       exportedAt: new Date().toISOString(),
       transactions,
       categories,
@@ -737,6 +741,7 @@ export class DexieRepository implements Repository {
       recurring,
       memory,
       reports,
+      aiUsage,
       settings,
     };
   }
@@ -746,22 +751,36 @@ export class DexieRepository implements Repository {
       throw new Error('Invalid backup file: not a JSON object');
     }
 
-    if (!Array.isArray(data['categories']) || !Array.isArray(data['transactions'])) {
+    // Support both root-level arrays and tables-nested schemas
+    const source = (data['tables'] && typeof data['tables'] === 'object' ? data['tables'] : data) as Record<string, unknown>;
+
+    if (!Array.isArray(source['categories']) || !Array.isArray(source['transactions'])) {
       throw new Error('Invalid backup file: missing categories or transactions arrays');
     }
 
-    const txs = data['transactions'] as Transaction[];
-    const cats = data['categories'] as Category[];
-    const budgets = (data['budgets'] as Budget[]) || [];
-    const rules = (data['rules'] as Rule[]) || [];
-    const recurring = (data['recurring'] as RecurringExpense[]) || [];
-    const memory = (data['memory'] as MemoryItem[]) || [];
-    const reports = (data['reports'] as ReportItem[]) || [];
-    const settings = (data['settings'] as Array<{ key: string; value: unknown }>) || [];
+    const txs = source['transactions'] as Transaction[];
+    const cats = source['categories'] as Category[];
+    const budgets = Array.isArray(source['budgets']) ? (source['budgets'] as Budget[]) : [];
+    const rules = Array.isArray(source['rules']) ? (source['rules'] as Rule[]) : [];
+    const recurring = Array.isArray(source['recurring']) ? (source['recurring'] as RecurringExpense[]) : [];
+    const memory = Array.isArray(source['memory']) ? (source['memory'] as MemoryItem[]) : [];
+    const reports = Array.isArray(source['reports']) ? (source['reports'] as ReportItem[]) : [];
+    const aiUsage = Array.isArray(source['aiUsage']) ? (source['aiUsage'] as AiUsageRecord[]) : [];
+    const settings = Array.isArray(source['settings']) ? (source['settings'] as Array<{ key: string; value: unknown }>) : [];
 
-    // Only clear once validation has succeeded
-    await this.clearAll();
+    // Structural validation check
+    for (const c of cats) {
+      if (!c.id || typeof c.name !== 'string') {
+        throw new Error('Invalid category format in backup file');
+      }
+    }
+    for (const tx of txs) {
+      if (!tx.id || typeof tx.amount !== 'number' || !tx.date || !tx.categoryId) {
+        throw new Error('Invalid transaction format in backup file');
+      }
+    }
 
+    // Atomic restoration inside a single transaction so failure does not wipe the database
     await this.db.transaction(
       'rw',
       [
@@ -772,9 +791,22 @@ export class DexieRepository implements Repository {
         this.db.recurring,
         this.db.memory,
         this.db.reports,
+        this.db.aiUsage,
         this.db.settings,
       ],
       async () => {
+        await Promise.all([
+          this.db.transactions.clear(),
+          this.db.categories.clear(),
+          this.db.budgets.clear(),
+          this.db.rules.clear(),
+          this.db.recurring.clear(),
+          this.db.memory.clear(),
+          this.db.reports.clear(),
+          this.db.aiUsage.clear(),
+          this.db.settings.clear(),
+        ]);
+
         if (cats.length) await this.db.categories.bulkPut(cats);
         if (txs.length) await this.db.transactions.bulkPut(txs);
         if (budgets.length) await this.db.budgets.bulkPut(budgets);
@@ -782,12 +814,15 @@ export class DexieRepository implements Repository {
         if (recurring.length) await this.db.recurring.bulkPut(recurring);
         if (memory.length) await this.db.memory.bulkPut(memory);
         if (reports.length) await this.db.reports.bulkPut(reports);
+        if (aiUsage.length) await this.db.aiUsage.bulkPut(aiUsage);
         if (settings.length) {
           for (const s of settings) {
-            await this.db.settings.put({
-              key: s.key,
-              value: s.value as string | number | boolean | object,
-            });
+            if (s && typeof s.key === 'string') {
+              await this.db.settings.put({
+                key: s.key,
+                value: s.value as string | number | boolean | object,
+              });
+            }
           }
         }
       }
