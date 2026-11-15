@@ -13,7 +13,8 @@ import { generateDueRecurringTransactions } from '@/features/recurring/recurring
 import { downloadBackupJson } from '@/lib/backup';
 import { CLOUD_MODE } from '@/lib/auth/firebase';
 import { secretsAdapter } from '@/lib/secrets';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { prefetchAppPages } from '@/routes';
 import { APP_NAME } from '@/constants/app';
 import { Info, Download } from 'lucide-react';
 import { OfflineIndicator } from '@/components/pwa/OfflineIndicator';
@@ -56,6 +57,7 @@ const firstRunOnce = new Map<string, Promise<boolean>>();
 const seedOnce = new Map<string, Promise<Awaited<ReturnType<typeof seedDatabase>> | null>>();
 
 export const Shell: React.FC = () => {
+  const location = useLocation();
   const { isQuickAddOpen, openQuickAdd, closeQuickAdd } = useUiStore();
   const { initTheme } = useThemeStore();
   const { settings, loadSettings, requestStoragePersistence, recordBackup, dismissBackupReminder } = useSettingsStore();
@@ -64,6 +66,14 @@ export const Shell: React.FC = () => {
   // Pages read categories once on mount, so they must not render until the
   // first-run seed has finished (otherwise a fresh vault shows "Other" everywhere).
   const [storageReady, setStorageReady] = useState(false);
+  // Warm the other pages so tab switches are instant (and transitions never wait on the network).
+  useEffect(() => {
+    if (!storageReady) return;
+    const ric = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+    if (ric) ric(prefetchAppPages);
+    else setTimeout(prefetchAppPages, 1200);
+  }, [storageReady]);
+
   // Hosted site: each user must bring their own Gemini key before AI features work.
   const [needsAiKey, setNeedsAiKey] = useState(false);
 
@@ -194,7 +204,8 @@ export const Shell: React.FC = () => {
   }, [isQuickAddOpen, openQuickAdd, closeQuickAdd]);
 
   return (
-    <div className="app-shell min-h-screen flex bg-cream-100 dark:bg-dark-bg text-deep-blue-950 dark:text-cream-100 antialiased selection:bg-cream-300 selection:text-deep-blue-900 transition-colors">
+    <div className="app-shell relative min-h-screen flex bg-cream-100 dark:bg-dark-bg text-deep-blue-950 dark:text-cream-100 antialiased transition-colors">
+      <div className="app-ambient" aria-hidden="true" />
       {/* Skip to Main Content Link */}
       <a
         href="#main-content"
@@ -207,7 +218,7 @@ export const Shell: React.FC = () => {
       <Sidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
+      <div className="relative z-10 flex-1 flex flex-col min-w-0 pb-24 md:pb-0">
         <Header />
 
         {/* PWA Offline & Install Banners */}
@@ -218,7 +229,7 @@ export const Shell: React.FC = () => {
         {(seedNotice || showBackupReminder || needsAiKey) && (
           <div className="print:hidden w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 space-y-2">
             {seedNotice && (
-              <div role="status" className="flex items-center gap-3 h-11 pl-4 pr-1.5 rounded-xl bg-white dark:bg-white/[0.03] border border-cream-200 dark:border-white/[0.06] text-[13px] animate-fadeIn">
+              <div role="status" className="flex items-center gap-3 h-11 pl-4 pr-1.5 rounded-xl liquid-glass text-[13px] animate-fadeIn">
                 <Info className="w-4 h-4 shrink-0 text-deep-blue-500 dark:text-white/40" strokeWidth={1.75} />
                 <span className="flex-1 truncate text-deep-blue-900/70 dark:text-white/60">{seedNotice}</span>
                 <button
@@ -231,7 +242,7 @@ export const Shell: React.FC = () => {
             )}
 
             {needsAiKey && (
-              <div role="status" className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 min-h-11 py-1.5 pl-4 pr-1.5 rounded-xl bg-white dark:bg-white/[0.03] border border-cream-200 dark:border-white/[0.06] text-[13px] animate-fadeIn">
+              <div role="status" className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 min-h-11 py-1.5 pl-4 pr-1.5 rounded-xl liquid-glass text-[13px] animate-fadeIn">
                 <span className="w-1.5 h-1.5 rounded-full bg-deep-blue-500 dark:bg-sky-400 shrink-0" aria-hidden="true" />
                 <p className="flex-1 min-w-0 text-deep-blue-900/70 dark:text-white/60">
                   <span className="text-deep-blue-950 dark:text-white">Connect your Gemini key.</span>{' '}
@@ -247,7 +258,7 @@ export const Shell: React.FC = () => {
             )}
 
             {showBackupReminder && (
-              <div role="status" className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 min-h-11 py-1.5 pl-4 pr-1.5 rounded-xl bg-white dark:bg-white/[0.03] border border-cream-200 dark:border-white/[0.06] text-[13px] animate-fadeIn">
+              <div role="status" className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 min-h-11 py-1.5 pl-4 pr-1.5 rounded-xl liquid-glass text-[13px] animate-fadeIn">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-300 shrink-0" aria-hidden="true" />
                 <p className="flex-1 min-w-0 text-deep-blue-900/70 dark:text-white/60">
                   <span className="text-deep-blue-950 dark:text-white">Back up your vault.</span>{' '}
@@ -276,9 +287,11 @@ export const Shell: React.FC = () => {
           </div>
         )}
 
-        <main id="main-content" tabIndex={-1} className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto focus:outline-none">
+        <main id="main-content" tabIndex={-1} className="relative flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto focus:outline-none">
           {storageReady ? (
-            <Outlet />
+            <div key={location.pathname} className="vt-page">
+              <Outlet />
+            </div>
           ) : (
             <div className="min-h-[40vh] grid place-items-center" role="status" aria-label="Preparing your vault">
               <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-sky-400 animate-spin" />

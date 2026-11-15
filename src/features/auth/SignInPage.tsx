@@ -246,7 +246,7 @@ export const SignInPage: React.FC = () => {
               <div
                 role="tablist"
                 aria-label="Account"
-                className="relative grid grid-cols-2 p-1 rounded-full bg-white/[0.05] border border-white/10 mb-10"
+                className="liquid-glass relative grid grid-cols-2 p-1 rounded-full mb-10"
               >
                 <span
                   aria-hidden="true"

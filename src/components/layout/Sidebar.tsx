@@ -62,7 +62,7 @@ const navClass =
       'group relative flex items-center gap-3 h-10 rounded-xl text-[14px] transition-colors',
       collapsed ? 'justify-center px-0' : 'px-3',
       isActive
-        ? 'bg-deep-blue-50 text-deep-blue-950 dark:bg-white/[0.06] dark:text-white font-medium'
+        ? 'text-deep-blue-950 dark:text-white font-medium'
         : 'text-deep-blue-900/60 hover:text-deep-blue-950 hover:bg-deep-blue-50/60 dark:text-white/50 dark:hover:text-white dark:hover:bg-white/[0.03]'
     );
 
@@ -92,17 +92,25 @@ export const Sidebar: React.FC = () => {
   const renderItem = (item: NavItem, end = false) => {
     const Icon = item.icon;
     return (
-      <NavLink key={item.to} to={item.to} end={end} className={navClass(collapsed)} title={collapsed ? item.label : undefined}>
+      <NavLink
+        key={item.to}
+        to={item.to}
+        end={end}
+        viewTransition
+        className={navClass(collapsed)}
+        title={collapsed ? item.label : undefined}
+      >
         {({ isActive }) => (
           <>
             {isActive && (
+              // One shared glass capsule: the view transition glides it between items
               <span
                 aria-hidden="true"
-                className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[2px] rounded-full bg-deep-blue-500 dark:bg-sky-400"
+                className="vt-nav-active absolute inset-0 rounded-xl bg-white shadow-sm dark:bg-transparent dark:liquid-glass-thin"
               />
             )}
-            <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
-            {!collapsed && <span className="truncate">{item.label}</span>}
+            <Icon className="relative w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
+            {!collapsed && <span className="relative truncate">{item.label}</span>}
           </>
         )}
       </NavLink>
@@ -113,7 +121,7 @@ export const Sidebar: React.FC = () => {
     <aside
       className={clsx(
         'hidden md:flex flex-col h-screen sticky top-0 z-30 select-none transition-[width] duration-300',
-        'bg-cream-50 dark:bg-dark-bg border-r border-cream-200 dark:border-white/[0.06]',
+        'liquid-bar border-r border-cream-200 dark:border-white/[0.07]',
         collapsed ? 'w-[76px]' : 'w-[248px]'
       )}
     >
@@ -121,6 +129,7 @@ export const Sidebar: React.FC = () => {
       <div className={clsx('h-16 flex items-center', collapsed ? 'justify-center' : 'justify-between pl-5 pr-3')}>
         <NavLink
           to="/app"
+          viewTransition
           className="flex items-center gap-2.5 rounded-lg text-deep-blue-950 dark:text-white"
           aria-label="LedgerLite overview"
         >

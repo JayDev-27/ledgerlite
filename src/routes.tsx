@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import { Suspense, lazy } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { RequireAuth, AuthSplash } from '@/components/auth/RequireAuth';
 
@@ -7,22 +7,22 @@ import { RequireAuth, AuthSplash } from '@/components/auth/RequireAuth';
 const LandingPage = lazy(() => import('@/features/landing/LandingPage'));
 const SignInPage = lazy(() => import('@/features/auth/SignInPage'));
 const Shell = lazy(() => import('@/components/layout/Shell').then((m) => ({ default: m.Shell })));
-const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })));
-const TransactionsPage = lazy(() =>
-  import('@/features/transactions/TransactionsPage').then((m) => ({ default: m.TransactionsPage }))
-);
-const BudgetsPage = lazy(() => import('@/features/budgets/BudgetsPage').then((m) => ({ default: m.BudgetsPage })));
-const ReportsPage = lazy(() => import('@/features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })));
-const AssistantPage = lazy(() => import('@/features/assistant/AssistantPage').then((m) => ({ default: m.AssistantPage })));
-const SettingsPage = lazy(() => import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+// In-app pages use the router's own `lazy`: the module loads *before* the
+// navigation commits, so view transitions animate between two finished pages
+// instead of flashing a spinner. Loaders are shared so prefetch hits the cache.
+const pageLoaders = {
+  dashboard: () => import('@/features/dashboard/DashboardPage').then((m) => ({ Component: m.DashboardPage })),
+  transactions: () => import('@/features/transactions/TransactionsPage').then((m) => ({ Component: m.TransactionsPage })),
+  budgets: () => import('@/features/budgets/BudgetsPage').then((m) => ({ Component: m.BudgetsPage })),
+  reports: () => import('@/features/reports/ReportsPage').then((m) => ({ Component: m.ReportsPage })),
+  assistant: () => import('@/features/assistant/AssistantPage').then((m) => ({ Component: m.AssistantPage })),
+  settings: () => import('@/features/settings/SettingsPage').then((m) => ({ Component: m.SettingsPage })),
+};
 
-const PageFallback: React.FC = () => (
-  <div className="min-h-[40vh] grid place-items-center" role="status" aria-label="Loading">
-    <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-sky-400 animate-spin" />
-  </div>
-);
-
-const page = (el: React.ReactNode) => <Suspense fallback={<PageFallback />}>{el}</Suspense>;
+/** Warm every in-app page chunk while the user reads the first one. */
+export function prefetchAppPages(): void {
+  Object.values(pageLoaders).forEach((load) => void load().catch(() => undefined));
+}
 
 const APP_SECTIONS = ['transactions', 'budgets', 'reports', 'assistant', 'settings'] as const;
 
@@ -53,12 +53,12 @@ export const router = createBrowserRouter([
       </RequireAuth>
     ),
     children: [
-      { index: true, element: page(<DashboardPage />) },
-      { path: 'transactions', element: page(<TransactionsPage />) },
-      { path: 'budgets', element: page(<BudgetsPage />) },
-      { path: 'reports', element: page(<ReportsPage />) },
-      { path: 'assistant', element: page(<AssistantPage />) },
-      { path: 'settings', element: page(<SettingsPage />) },
+      { index: true, lazy: pageLoaders.dashboard },
+      { path: 'transactions', lazy: pageLoaders.transactions },
+      { path: 'budgets', lazy: pageLoaders.budgets },
+      { path: 'reports', lazy: pageLoaders.reports },
+      { path: 'assistant', lazy: pageLoaders.assistant },
+      { path: 'settings', lazy: pageLoaders.settings },
       { path: '*', element: <Navigate to="/app" replace /> },
     ],
   },

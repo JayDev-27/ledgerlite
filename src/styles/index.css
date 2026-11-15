@@ -227,3 +227,163 @@ html.lenis, html.lenis body { height: auto; }
 .dark .app-shell select,
 .dark .app-shell input:not([type='checkbox']):not([type='radio']):not([type='range']),
 .dark .app-shell textarea { color-scheme: dark; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   LIQUID GLASS — the navigation/control layer that floats above content.
+   Translucent body + specular rim + top sheen; refraction on Chromium.
+   ════════════════════════════════════════════════════════════════════════ */
+@layer components {
+  .liquid-glass {
+    position: relative;
+    isolation: isolate;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025)),
+      rgba(22, 23, 25, 0.42);
+    -webkit-backdrop-filter: blur(24px) saturate(185%);
+    backdrop-filter: blur(24px) saturate(185%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.04),
+      0 12px 40px -12px rgba(0, 0, 0, 0.55),
+      0 2px 8px -2px rgba(0, 0, 0, 0.3);
+  }
+  /* Specular rim: bright where light hits (top-left), faint opposite */
+  .liquid-glass::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    pointer-events: none;
+    background: linear-gradient(
+      140deg,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.08) 28%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(255, 255, 255, 0.06) 72%,
+      rgba(255, 255, 255, 0.28) 100%
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    z-index: 1;
+  }
+  /* Soft sheen pooled at the top edge */
+  .liquid-glass::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(130% 70% at 50% -20%, rgba(255, 255, 255, 0.16), transparent 62%);
+    z-index: 0;
+  }
+  .liquid-glass > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* Thinner variant for small controls (pills, thumbs, chips) */
+  .liquid-glass-thin {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+    -webkit-backdrop-filter: blur(14px) saturate(180%);
+    backdrop-filter: blur(14px) saturate(180%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+      0 4px 14px -4px rgba(0, 0, 0, 0.45);
+  }
+
+  /* Edge-to-edge bars (headers/sidebars): no outer shadow, rim on one side */
+  .liquid-bar {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)), rgba(11, 12, 13, 0.55);
+    -webkit-backdrop-filter: blur(28px) saturate(185%);
+    backdrop-filter: blur(28px) saturate(185%);
+  }
+}
+
+/* Refraction (Chromium supports SVG filters in backdrop-filter) */
+.lg-refract .liquid-glass {
+  -webkit-backdrop-filter: url(#lg-refract) blur(20px) saturate(185%);
+  backdrop-filter: url(#lg-refract) blur(20px) saturate(185%);
+}
+
+/* Light theme: brighter frosted glass */
+html:not(.dark) .liquid-glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.45)), rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 12px 40px -14px rgba(15, 16, 17, 0.25);
+}
+html:not(.dark) .liquid-bar {
+  background: rgba(244, 244, 241, 0.7);
+}
+
+/* Ambient light behind the app so the glass has something to bend */
+.app-ambient {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(38rem 26rem at 88% -8%, rgba(132, 125, 255, 0.13), transparent 70%),
+    radial-gradient(30rem 22rem at 12% 108%, rgba(159, 232, 112, 0.07), transparent 70%),
+    radial-gradient(26rem 20rem at 55% 55%, rgba(0, 179, 221, 0.035), transparent 70%);
+}
+html:not(.dark) .app-ambient { opacity: 0.6; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   PAGE TRANSITIONS — View Transitions API with an Apple-like spring curve.
+   Sidebar/header stay put; only the page recedes and the next one settles.
+   ════════════════════════════════════════════════════════════════════════ */
+:root {
+  --spring: cubic-bezier(0.32, 0.72, 0, 1);
+}
+.vt-page { view-transition-name: page; }
+.vt-title { view-transition-name: page-title; }
+.vt-nav-active { view-transition-name: nav-active; }
+.vt-tab-active { view-transition-name: tab-active; }
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+::view-transition-group(page) { animation-duration: 0.5s; animation-timing-function: var(--spring); }
+::view-transition-old(page) { animation: vt-page-out 0.22s cubic-bezier(0.4, 0, 1, 1) both; }
+::view-transition-new(page) { animation: vt-page-in 0.5s var(--spring) both; }
+::view-transition-old(page-title) { animation: vt-fade-out 0.18s ease-in both; }
+::view-transition-new(page-title) { animation: vt-title-in 0.45s var(--spring) both; }
+/* The active pill glides between items as one shared glass element */
+::view-transition-group(nav-active),
+::view-transition-group(tab-active) {
+  animation-duration: 0.55s;
+  animation-timing-function: var(--spring);
+}
+::view-transition-old(nav-active),
+::view-transition-new(nav-active),
+::view-transition-old(tab-active),
+::view-transition-new(tab-active) {
+  animation: none;
+  mix-blend-mode: normal;
+  height: 100%;
+}
+
+@keyframes vt-page-out {
+  to { opacity: 0; transform: scale(0.985); filter: blur(4px); }
+}
+@keyframes vt-page-in {
+  from { opacity: 0; transform: translateY(14px) scale(1.008); filter: blur(6px); }
+}
+@keyframes vt-fade-out { to { opacity: 0; } }
+@keyframes vt-title-in { from { opacity: 0; transform: translateY(6px); filter: blur(3px); } }
+
+/* Browsers without View Transitions still get a gentle settle */
+@supports not (view-transition-name: none) {
+  .vt-page { animation: vt-page-in 0.45s var(--spring) both; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

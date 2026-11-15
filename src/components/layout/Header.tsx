@@ -1,8 +1,7 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { Sun, Moon, Plus, WifiOff } from 'lucide-react';
+import { Sun, Moon, WifiOff } from 'lucide-react';
 import { useThemeStore } from '@/store/themeStore';
-import { useUiStore } from '@/store/uiStore';
 import { usePwa } from '@/lib/pwa';
 import { BrandGlyph } from '@/components/brand/BrandMark';
 
@@ -18,20 +17,19 @@ const ROUTE_TITLES: Record<string, { title: string; subtitle: string }> = {
 export const Header: React.FC = () => {
   const location = useLocation();
   const { resolvedTheme, toggleTheme } = useThemeStore();
-  const { openQuickAdd } = useUiStore();
   const { isOnline } = usePwa();
 
   const current = ROUTE_TITLES[location.pathname] ?? { title: 'LedgerLite', subtitle: '' };
   const nextTheme = resolvedTheme === 'dark' ? 'light' : 'dark';
 
   return (
-    <header className="sticky top-0 z-20 bg-cream-100/80 dark:bg-dark-bg/75 backdrop-blur-xl backdrop-saturate-150 border-b border-cream-200 dark:border-white/[0.06]">
+    <header className="liquid-bar sticky top-0 z-20 border-b border-cream-200 dark:border-white/[0.07]">
       <div className="flex items-center justify-between gap-4 px-5 sm:px-8 h-16">
         <div className="flex items-center gap-3 min-w-0">
           <span className="md:hidden text-deep-blue-950 dark:text-white">
             <BrandGlyph size={22} />
           </span>
-          <div className="flex items-baseline gap-3 min-w-0">
+          <div className="vt-title flex items-baseline gap-3 min-w-0">
             <h1 className="!text-[26px] leading-none font-normal text-deep-blue-950 dark:text-white truncate">{current.title}</h1>
             {current.subtitle && (
               <p className="hidden sm:block text-[13px] text-deep-blue-900/45 dark:text-white/35 truncate">{current.subtitle}</p>
@@ -60,14 +58,6 @@ export const Header: React.FC = () => {
             {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" strokeWidth={1.75} /> : <Moon className="w-4 h-4" strokeWidth={1.75} />}
           </button>
 
-          {/* Desktop logs expenses from the sidebar; phones get it here */}
-          <button
-            onClick={openQuickAdd}
-            aria-label="Log expense (shortcut N)"
-            className="md:hidden grid place-items-center w-9 h-9 rounded-xl bg-deep-blue-950 text-white dark:bg-white dark:text-black"
-          >
-            <Plus className="w-4 h-4" strokeWidth={2} />
-          </button>
         </div>
       </div>
     </header>

@@ -59,10 +59,10 @@ export const DashboardPeriodToolbar: React.FC<DashboardPeriodToolbarProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-dark-surface p-4 rounded-3xl border border-cream-200 dark:border-dark-border shadow-sm space-y-3">
+    <div className="liquid-glass p-4 rounded-3xl space-y-3">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         {/* Period Type Pills */}
-        <div className="flex items-center gap-1 overflow-x-auto p-1 bg-cream-100 dark:bg-dark-elevated rounded-2xl">
+        <div className="flex items-center gap-1 overflow-x-auto p-1 bg-cream-100 dark:bg-black/25 rounded-2xl">
           {PERIOD_TYPES.map(({ type, label }) => {
             const isActive = periodType === type;
             return (
@@ -76,7 +76,7 @@ export const DashboardPeriodToolbar: React.FC<DashboardPeriodToolbarProps> = ({
                 }}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
                   isActive
-                    ? 'bg-deep-blue-500 text-white shadow-sm dark:bg-white dark:text-black dark:hover:bg-cream-200'
+                    ? 'bg-deep-blue-500 text-white shadow-sm dark:bg-transparent dark:liquid-glass-thin dark:text-white'
                     : 'text-deep-blue-800 dark:text-cream-200 hover:text-deep-blue-900 dark:hover:text-cream-100 hover:bg-cream-200/60 dark:hover:bg-dark-border'
                 }`}
               >
@@ -89,7 +89,7 @@ export const DashboardPeriodToolbar: React.FC<DashboardPeriodToolbarProps> = ({
         {/* Date Stepper & Comparison Toggle */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Stepper with current label */}
-          <div className="flex items-center bg-cream-50 dark:bg-dark-elevated border border-cream-200 dark:border-dark-border rounded-2xl p-1">
+          <div className="flex items-center bg-cream-50 dark:bg-black/25 border border-cream-200 dark:border-white/[0.06] rounded-2xl p-1">
             <button
               onClick={onPrevious}
               className="p-1.5 rounded-xl text-deep-blue-700 dark:text-cream-200 hover:bg-cream-200/70 dark:hover:bg-dark-border transition-colors"

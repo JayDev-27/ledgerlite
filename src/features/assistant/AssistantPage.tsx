@@ -224,7 +224,7 @@ export const AssistantPage: React.FC = () => {
     <div className="mx-auto w-full max-w-3xl flex flex-col min-h-[calc(100svh-10rem)] animate-fadeIn">
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4 pb-6">
-        <div role="tablist" aria-label="Assistant view" className="flex items-center p-1 rounded-xl bg-deep-blue-50/70 dark:bg-white/[0.04]">
+        <div role="tablist" aria-label="Assistant view" className="liquid-glass flex items-center p-1 rounded-xl">
           {(['chat', 'memory'] as const).map((tab) => (
             <button
               key={tab}
@@ -234,7 +234,7 @@ export const AssistantPage: React.FC = () => {
               className={clsx(
                 'h-8 px-3.5 rounded-lg text-[13px] font-medium transition-colors',
                 activeTab === tab
-                  ? 'bg-white text-deep-blue-950 shadow-sm dark:bg-white/[0.1] dark:text-white dark:shadow-none'
+                  ? 'bg-white text-deep-blue-950 shadow-sm dark:bg-transparent dark:liquid-glass-thin dark:text-white'
                   : 'text-deep-blue-900/50 hover:text-deep-blue-950 dark:text-white/45 dark:hover:text-white'
               )}
             >
@@ -431,7 +431,7 @@ export const AssistantPage: React.FC = () => {
                 e.preventDefault();
                 handleSend(inputMessage);
               }}
-              className="flex items-end gap-2 p-2 pl-4 rounded-[22px] border border-cream-200 dark:border-white/[0.1] bg-white/90 dark:bg-[#141516]/90 backdrop-blur-xl shadow-[0_20px_60px_-20px_rgba(0,0,0,0.25)] dark:shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] focus-within:border-deep-blue-300 dark:focus-within:border-white/20 transition-colors"
+              className="flex items-end gap-2 p-2 pl-4 liquid-glass rounded-[22px]"
             >
               <label htmlFor="assistant-input" className="sr-only">
                 Ask the assistant

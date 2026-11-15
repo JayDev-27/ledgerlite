@@ -269,7 +269,7 @@ export const LandingPage: React.FC = () => {
         <nav
           aria-label="Primary"
           className={`mx-auto max-w-6xl flex items-center justify-between rounded-full pl-3 pr-2 py-2 transition-all duration-500 ${
-            navSolid ? 'glass shadow-[0_10px_40px_-10px_rgba(0,0,0,0.6)]' : 'border border-transparent'
+            navSolid ? 'liquid-glass' : 'liquid-glass !bg-transparent !shadow-none'
           }`}
         >
           <Link to="/" className="rounded-full" aria-label="LedgerLite home">
@@ -350,7 +350,7 @@ export const LandingPage: React.FC = () => {
                   <a
                     href="#features"
                     onClick={(e) => scrollTo(e, '#features')}
-                    className="inline-flex items-center gap-2 px-5 py-3.5 rounded-full border border-white/20 text-white/85 text-[15px] font-medium hover:border-white/40 hover:text-white transition-colors"
+                    className="liquid-glass inline-flex items-center gap-2 px-5 py-3.5 rounded-full text-white/90 text-[15px] font-medium hover:text-white transition-colors"
                   >
                     Explore features
                   </a>

@@ -1,99 +1,62 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  ArrowLeftRight,
-  PieChart,
-  Bot,
-  Plus,
-} from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, PieChart, MessageSquareText, Plus, type LucideIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { useUiStore } from '@/store/uiStore';
 
+const TABS: Array<{ to: string; label: string; icon: LucideIcon; end?: boolean }> = [
+  { to: '/app', label: 'Overview', icon: LayoutDashboard, end: true },
+  { to: '/app/transactions', label: 'Ledger', icon: ArrowLeftRight },
+  { to: '/app/budgets', label: 'Budgets', icon: PieChart },
+  { to: '/app/assistant', label: 'Assistant', icon: MessageSquareText },
+];
+
+/** Floating liquid-glass tab bar (phones). The active capsule glides between tabs. */
 export const MobileTabs: React.FC = () => {
   const { openQuickAdd } = useUiStore();
 
+  const tab = ({ to, label, icon: Icon, end }: (typeof TABS)[number]) => (
+    <NavLink
+      key={to}
+      to={to}
+      end={end}
+      viewTransition
+      className={({ isActive }) =>
+        clsx(
+          'relative flex-1 h-12 flex flex-col items-center justify-center gap-0.5 rounded-full text-[10px] font-medium transition-colors',
+          isActive ? 'text-deep-blue-950 dark:text-white' : 'text-deep-blue-900/50 dark:text-white/45'
+        )
+      }
+    >
+      {({ isActive }) => (
+        <>
+          {isActive && (
+            <span
+              aria-hidden="true"
+              className="vt-tab-active absolute inset-x-0.5 inset-y-0.5 rounded-full bg-white shadow-sm dark:bg-transparent dark:liquid-glass-thin"
+            />
+          )}
+          <Icon className="relative w-[18px] h-[18px]" strokeWidth={1.75} />
+          <span className="relative">{label}</span>
+        </>
+      )}
+    </NavLink>
+  );
+
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-cream-50/95 dark:bg-[#0E0F10]/90 backdrop-blur-md border-t border-cream-200 dark:border-dark-border px-2 py-1.5 safe-bottom">
-      <div className="flex items-center justify-around">
-        {/* Dashboard */}
-        <NavLink
-          to="/app"
-          end
-          className={({ isActive }) =>
-            clsx(
-              'flex flex-col items-center justify-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors',
-              isActive
-                ? 'text-deep-blue-500 dark:text-sky-400 font-semibold'
-                : 'text-deep-blue-700/60 dark:text-cream-400'
-            )
-          }
-        >
-          <LayoutDashboard className="w-5 h-5 mb-0.5" />
-          <span>Dashboard</span>
-        </NavLink>
-
-        {/* Transactions */}
-        <NavLink
-          to="/app/transactions"
-          className={({ isActive }) =>
-            clsx(
-              'flex flex-col items-center justify-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors',
-              isActive
-                ? 'text-deep-blue-500 dark:text-cream-100 font-semibold'
-                : 'text-deep-blue-700/60 dark:text-cream-400'
-            )
-          }
-        >
-          <ArrowLeftRight className="w-5 h-5 mb-0.5" />
-          <span>Ledger</span>
-        </NavLink>
-
-        {/* Center Quick Add Floating Button */}
+    <nav
+      aria-label="Main"
+      className="mobile-tabs md:hidden fixed bottom-0 inset-x-0 z-40 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pointer-events-none"
+    >
+      <div className="pointer-events-auto mx-auto max-w-md flex items-center gap-2">
+        <div className="liquid-glass flex-1 flex items-center p-1 rounded-full">{TABS.map(tab)}</div>
         <button
           onClick={openQuickAdd}
-          aria-label="Quick Add Expense"
-          className="flex flex-col items-center justify-center -mt-5"
+          aria-label="Log expense"
+          className="liquid-glass grid place-items-center w-14 h-14 rounded-full text-deep-blue-950 dark:text-white active:scale-95 transition-transform"
         >
-          <div className="w-12 h-12 rounded-full bg-deep-blue-500 text-cream-100 flex items-center justify-center shadow-lg active:scale-95 transition-transform border-2 border-cream-100 dark:border-dark-bg">
-            <Plus className="w-6 h-6" />
-          </div>
-          <span className="text-[10px] font-semibold text-deep-blue-900 dark:text-cream-100 mt-0.5">
-            Add
-          </span>
+          <Plus className="w-6 h-6" strokeWidth={2} />
         </button>
-
-        {/* Budgets */}
-        <NavLink
-          to="/app/budgets"
-          className={({ isActive }) =>
-            clsx(
-              'flex flex-col items-center justify-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors',
-              isActive
-                ? 'text-deep-blue-500 dark:text-cream-100 font-semibold'
-                : 'text-deep-blue-700/60 dark:text-cream-400'
-            )
-          }
-        >
-          <PieChart className="w-5 h-5 mb-0.5" />
-          <span>Budgets</span>
-        </NavLink>
-
-        {/* Assistant */}
-        <NavLink
-          to="/app/assistant"
-          className={({ isActive }) =>
-            clsx(
-              'flex flex-col items-center justify-center py-1 px-2 rounded-lg text-[10px] font-medium transition-colors',
-              isActive
-                ? 'text-deep-blue-500 dark:text-cream-100 font-semibold'
-                : 'text-deep-blue-700/60 dark:text-cream-400'
-            )
-          }
-        >
-          <Bot className="w-5 h-5 mb-0.5" />
-          <span>Assistant</span>
-        </NavLink>
       </div>
     </nav>
   );
