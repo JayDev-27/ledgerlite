@@ -61,7 +61,7 @@ export const SuggestBudgetModal: React.FC<SuggestBudgetModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="suggest-budget-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-deep-blue-950/60 backdrop-blur-sm overflow-y-auto animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-black/75 backdrop-blur-sm overflow-y-auto animate-fadeIn"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

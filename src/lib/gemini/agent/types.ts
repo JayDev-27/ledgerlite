@@ -33,6 +33,13 @@ export interface GetBudgetStatusArgs {
   month: string; // YYYY-MM
 }
 
+export interface SetBudgetArgs {
+  month?: string; // YYYY-MM
+  totalLimit: number;
+  categoryLimits?: Record<string, number>;
+  rollover?: boolean;
+}
+
 export interface ProposeMemoryArgs {
   kind: MemoryKind;
   text: string;

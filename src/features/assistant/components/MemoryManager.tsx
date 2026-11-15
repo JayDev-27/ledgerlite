@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  BrainCircuit,
+  Brain,
   Plus,
   Check,
   X,
@@ -101,8 +101,8 @@ export const MemoryManager: React.FC<MemoryManagerProps> = ({ onMemoryChanged })
       {/* Header bar with filter tabs & Add CTA */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-card bg-white dark:bg-dark-surface border border-cream-200 dark:border-dark-border shadow-subtle">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-deep-blue-500 text-cream-100 flex items-center justify-center dark:bg-white dark:text-black dark:hover:bg-cream-200">
-            <BrainCircuit className="w-4 h-4" />
+          <div className="w-9 h-9 rounded-xl bg-deep-blue-50 dark:bg-gallery-iris/15 border border-deep-blue-200/60 dark:border-gallery-iris/25 text-deep-blue-600 dark:text-gallery-pale-iris flex items-center justify-center shadow-sm">
+            <Brain className="w-5 h-5" strokeWidth={1.75} />
           </div>
           <div>
             <h3 className="font-semibold text-sm text-deep-blue-950 dark:text-cream-100">

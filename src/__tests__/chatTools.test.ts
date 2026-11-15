@@ -92,6 +92,15 @@ describe('Chat Agent Tools — Local Deterministic Database Reasoning', () => {
       getAllTransactions: vi.fn(async () => mockTransactions),
       getCategories: vi.fn(async () => mockCategories),
       getBudgetForMonth: vi.fn(async (m: string) => mockBudgets.find((b) => b.month === m)),
+      setBudget: vi.fn(async (b: Budget) => {
+        const idx = mockBudgets.findIndex((existing) => existing.month === b.month);
+        if (idx >= 0) {
+          mockBudgets[idx] = b;
+        } else {
+          mockBudgets.push(b);
+        }
+        return b;
+      }),
       createMemoryItem: vi.fn(async (item) => {
         const created: MemoryItem = {
           ...item,
@@ -271,5 +280,117 @@ describe('Chat Agent Tools — Local Deterministic Database Reasoning', () => {
 
     expect(resPublic.transactions[0]?.notes).toBe('Confidential personal note with landlord phone 9876543210');
     expect(resPublic.transactions[0]?.merchant).toBe('A/C 12345678 Electricity Board');
+  });
+
+  describe('Tool: set_budget', () => {
+    it('creates a new budget when none exists for the target month and resolves category names', async () => {
+      const res = (await executeTool(
+        'set_budget',
+        {
+          month: '2026-12',
+          totalLimit: 50000,
+          categoryLimits: {
+            'Dining Out': 10000,
+            'Groceries': 15000,
+          },
+          rollover: true,
+        },
+        mockRepo
+      )) as {
+        success: boolean;
+        message: string;
+        month: string;
+        totalLimit: number;
+        categoryLimits: Record<string, number>;
+        rollover: boolean;
+      };
+
+      expect(res.success).toBe(true);
+      expect(res.month).toBe('2026-12');
+      expect(res.totalLimit).toBe(50000);
+      expect(res.categoryLimits).toEqual({
+        cat_dining: 10000,
+        cat_groceries: 15000,
+      });
+      expect(res.rollover).toBe(true);
+      expect(mockRepo.setBudget).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'budget_2026-12',
+          month: '2026-12',
+          totalLimit: 50000,
+          categoryLimits: {
+            cat_dining: 10000,
+            cat_groceries: 15000,
+          },
+          rollover: true,
+        })
+      );
+    });
+
+    it('merges category limits with existing budget and preserves untouched envelopes', async () => {
+      // Existing 2026-11 has: dining: 5000, groceries: 8000, invest: 12000
+      const res = (await executeTool(
+        'set_budget',
+        {
+          month: '2026-11',
+          totalLimit: 30000,
+          categoryLimits: {
+            'Groceries': 10000,
+            'cat_dining': 6000,
+          },
+        },
+        mockRepo
+      )) as {
+        success: boolean;
+        totalLimit: number;
+        categoryLimits: Record<string, number>;
+        rollover: boolean;
+      };
+
+      expect(res.success).toBe(true);
+      expect(res.totalLimit).toBe(30000);
+      // cat_invest (12000) should be preserved, groceries and dining updated
+      expect(res.categoryLimits).toEqual({
+        cat_dining: 6000,
+        cat_groceries: 10000,
+        cat_invest: 12000,
+      });
+      // Existing budget rollover was false, should be preserved when unspecified
+      expect(res.rollover).toBe(false);
+      expect(mockRepo.setBudget).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'b-2026-11',
+          month: '2026-11',
+          totalLimit: 30000,
+          rollover: false,
+        })
+      );
+    });
+
+    it('defaults month to 2026-11 and calculates totalLimit from category limits when 0', async () => {
+      const res = (await executeTool(
+        'set_budget',
+        {
+          totalLimit: 0,
+          categoryLimits: {
+            'Dining Out': 7000,
+            'Investments': 13000,
+          },
+        },
+        mockRepo
+      )) as {
+        success: boolean;
+        month: string;
+        totalLimit: number;
+        categoryLimits: Record<string, number>;
+      };
+
+      expect(res.success).toBe(true);
+      expect(res.month).toBe('2026-11');
+      // Existing groceries: 8000 (from previous test or mock), dining: 7000, invest: 13000 -> 28000
+      expect(res.categoryLimits.cat_dining).toBe(7000);
+      expect(res.categoryLimits.cat_invest).toBe(13000);
+      expect(res.totalLimit).toBeGreaterThanOrEqual(20000);
+    });
   });
 });

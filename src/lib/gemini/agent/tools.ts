@@ -1,12 +1,13 @@
 import { FunctionDeclaration, Type } from '@google/genai';
 import type { Repository } from '@/data/repository';
-import type { Transaction } from '@/types';
+import type { Transaction, Budget, Category } from '@/types';
 import { sanitizeSensitiveText } from '@/lib/gemini/privacySanitizer';
 import type {
   QueryTransactionsArgs,
   AggregateArgs,
   ComparePeriodsArgs,
   GetBudgetStatusArgs,
+  SetBudgetArgs,
   ProposeMemoryArgs,
 } from './types';
 
@@ -120,6 +121,33 @@ export const CHAT_TOOLS_DECLARATIONS: FunctionDeclaration[] = [
     },
   },
   {
+    name: 'set_budget',
+    description:
+      'Set, create, or update the overall monthly budget limit and optional category envelope limits for a given month (YYYY-MM). Persists directly into the user\'s budget database.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        month: {
+          type: Type.STRING,
+          description: 'Month in YYYY-MM format (e.g. "2026-11"). If omitted, defaults to current active month.',
+        },
+        totalLimit: {
+          type: Type.NUMBER,
+          description: 'Total monthly budget limit in INR. If set to 0 and category limits are provided, it will be automatically calculated from the sum of category limits.',
+        },
+        categoryLimits: {
+          type: Type.OBJECT,
+          description: 'Optional map of category names or IDs to their spending limit in INR (e.g. {"Groceries": 8000, "Dining Out": 4000})',
+        },
+        rollover: {
+          type: Type.BOOLEAN,
+          description: 'Whether unused budget carries over to the next month (defaults to true or existing setting)',
+        },
+      },
+      required: ['totalLimit'],
+    },
+  },
+  {
     name: 'list_categories',
     description:
       'List all user categories and subcategories, including their Need/Want/Savings 50-30-20 classification tags.',
@@ -149,6 +177,24 @@ export const CHAT_TOOLS_DECLARATIONS: FunctionDeclaration[] = [
     },
   },
 ];
+
+// Helper to resolve category name or id to canonical category id
+function resolveCategoryId(input: string, categories: Category[]): string {
+  const normalized = input.trim().toLowerCase();
+  // 1. Direct ID match (case-insensitive)
+  const byId = categories.find((c) => c.id.toLowerCase() === normalized);
+  if (byId) return byId.id;
+
+  // 2. Exact name match (case-insensitive)
+  const byExactName = categories.find((c) => c.name.toLowerCase() === normalized);
+  if (byExactName) return byExactName.id;
+
+  // 3. Substring match
+  const byPartial = categories.find((c) => c.name.toLowerCase().includes(normalized));
+  if (byPartial) return byPartial.id;
+
+  return input;
+}
 
 // Helper to filter transactions locally
 function filterTransactions(
@@ -432,6 +478,60 @@ export async function executeTool(
         projectedMonthEnd,
         status,
         categoryBreakdown,
+      };
+    }
+
+    case 'set_budget': {
+      const bArgs = args as unknown as SetBudgetArgs;
+      const targetMonth = bArgs.month?.trim() || '2026-11';
+      const existing = await repo.getBudgetForMonth(targetMonth);
+
+      const existingLimits: Record<string, number> = existing?.categoryLimits ? { ...existing.categoryLimits } : {};
+      const resolvedNewLimits: Record<string, number> = {};
+
+      if (bArgs.categoryLimits && typeof bArgs.categoryLimits === 'object') {
+        for (const [key, limitVal] of Object.entries(bArgs.categoryLimits)) {
+          const canonicalId = resolveCategoryId(key, categories);
+          const numVal = Math.round(Number(limitVal) || 0);
+          resolvedNewLimits[canonicalId] = numVal;
+        }
+      }
+
+      const finalCategoryLimits: Record<string, number> = {
+        ...existingLimits,
+        ...resolvedNewLimits,
+      };
+
+      let targetTotalLimit = Number(bArgs.totalLimit) || 0;
+      if (targetTotalLimit <= 0) {
+        const sumOfCategories = Object.values(finalCategoryLimits).reduce((sum, val) => sum + val, 0);
+        if (sumOfCategories > 0) {
+          targetTotalLimit = sumOfCategories;
+        } else if (existing?.totalLimit) {
+          targetTotalLimit = existing.totalLimit;
+        }
+      }
+
+      const updatedBudget: Budget = {
+        id: existing?.id || `budget_${targetMonth}`,
+        month: targetMonth,
+        totalLimit: Math.round(targetTotalLimit),
+        categoryLimits: finalCategoryLimits,
+        rollover: bArgs.rollover ?? existing?.rollover ?? true,
+        createdAt: existing?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await repo.setBudget(updatedBudget);
+
+      const envelopeCount = Object.keys(finalCategoryLimits).length;
+      return {
+        success: true,
+        message: `Budget for ${targetMonth} set to ₹${Math.round(targetTotalLimit).toLocaleString('en-IN')}${envelopeCount > 0 ? ` across ${envelopeCount} categories` : ''}.`,
+        month: targetMonth,
+        totalLimit: Math.round(targetTotalLimit),
+        categoryLimits: finalCategoryLimits,
+        rollover: updatedBudget.rollover,
       };
     }
 

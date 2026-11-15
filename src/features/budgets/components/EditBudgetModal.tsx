@@ -91,7 +91,7 @@ export const EditBudgetModal: React.FC<EditBudgetModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-budget-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-deep-blue-950/60 backdrop-blur-sm overflow-y-auto animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-black/75 backdrop-blur-sm overflow-y-auto animate-fadeIn"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -153,7 +153,7 @@ export const EditBudgetModal: React.FC<EditBudgetModalProps> = ({
                     type="button"
                     onClick={handleAutoSumTotal}
                     title="Sum of categories"
-                    className="p-2 rounded-xl bg-deep-blue-50 dark:bg-dark-surface border border-deep-blue-100 dark:border-dark-border text-deep-blue-600 dark:text-cream-200 hover:bg-deep-blue-100 transition-colors"
+                    className="p-2 rounded-xl bg-deep-blue-50 dark:bg-dark-surface border border-deep-blue-100 dark:border-dark-border text-deep-blue-600 dark:text-cream-200 hover:bg-deep-blue-100 dark:hover:bg-dark-elevated transition-colors"
                   >
                     <Calculator className="w-4 h-4" />
                   </button>
@@ -177,7 +177,7 @@ export const EditBudgetModal: React.FC<EditBudgetModalProps> = ({
                     onChange={(e) => setRollover(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-cream-300 peer-focus:outline-none rounded-full peer dark:bg-dark-border peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-deep-blue-500" />
+                  <div className="w-11 h-6 bg-cream-300 peer-focus:outline-none rounded-full peer dark:bg-dark-border peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-deep-blue-500 dark:peer-checked:bg-gallery-iris" />
                 </label>
               </div>
             </div>

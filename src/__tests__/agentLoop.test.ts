@@ -71,6 +71,7 @@ describe('Agentic Chat Assistant Loop — Max 2 Tool Rounds & Code Computation',
       getAllTransactions: vi.fn(async () => mockTransactions),
       getCategories: vi.fn(async () => mockCategories),
       getBudgetForMonth: vi.fn(async () => undefined),
+      setBudget: vi.fn(async (b) => b),
       getMemoryItems: vi.fn(async () => []),
       createMemoryItem: vi.fn(async (item) => ({
         ...item,
@@ -219,5 +220,71 @@ describe('Agentic Chat Assistant Loop — Max 2 Tool Rounds & Code Computation',
       text: 'Saving ₹45,000 for emergency fund by December',
       approvedAt: null, // Proposes with null approval
     });
+  });
+
+  it('executes set_budget tool call and persists budget to repository', async () => {
+    mockGenerateContent.mockResolvedValueOnce({
+      functionCalls: [
+        {
+          name: 'set_budget',
+          args: {
+            month: '2026-11',
+            totalLimit: 40000,
+            categoryLimits: {
+              'Dining Out': 8000,
+              'Groceries': 12000,
+            },
+          },
+        },
+      ],
+      candidates: [
+        {
+          content: {
+            role: 'model',
+            parts: [
+              {
+                functionCall: {
+                  name: 'set_budget',
+                  args: {
+                    month: '2026-11',
+                    totalLimit: 40000,
+                    categoryLimits: { 'Dining Out': 8000, 'Groceries': 12000 },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    mockGenerateContent.mockResolvedValueOnce({
+      text: 'I have set your November 2026 budget to ₹40,000 with ₹8,000 for Dining Out and ₹12,000 for Groceries.',
+      functionCalls: undefined,
+    });
+
+    const result = await runAgentTurn(
+      {
+        userQuery: 'Set my November budget to 40000 with 8000 for dining out and 12000 for groceries',
+        apiKey: 'test-key',
+      },
+      mockRepo,
+      mockQueue
+    );
+
+    expect(mockGenerateContent).toHaveBeenCalledTimes(2);
+    expect(result.toolExecutions.length).toBe(1);
+    expect(result.toolExecutions[0]?.name).toBe('set_budget');
+    expect(mockRepo.setBudget).toHaveBeenCalledWith(
+      expect.objectContaining({
+        month: '2026-11',
+        totalLimit: 40000,
+        categoryLimits: {
+          cat_dining: 8000,
+          cat_groceries: 12000,
+        },
+      })
+    );
+    expect(result.text).toContain('₹40,000');
   });
 });
