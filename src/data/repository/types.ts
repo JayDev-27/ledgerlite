@@ -46,6 +46,7 @@ export interface Repository {
   getTransaction(id: string): Promise<Transaction | undefined>;
   getTransactionsByDateRange(startDate: string, endDate: string): Promise<Transaction[]>;
   createTransaction(tx: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<Transaction>;
+  addTransaction(tx: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<Transaction>;
   updateTransaction(id: string, updates: Partial<Transaction>): Promise<Transaction>;
   deleteTransaction(id: string): Promise<void>;
   bulkDeleteTransactions(ids: string[]): Promise<void>;

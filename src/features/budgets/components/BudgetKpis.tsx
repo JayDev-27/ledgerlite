@@ -130,26 +130,24 @@ export const BudgetKpis: React.FC<BudgetKpisProps> = ({ metrics }) => {
           <span className="text-xs font-semibold uppercase tracking-wider text-deep-blue-500 dark:text-cream-200">
             Projected Month-End
           </span>
-          <div
-            className={`px-2.5 py-1 rounded-full text-[11px] font-medium tracking-tight border flex items-center gap-1.5 shadow-xs ${
-              status === 'over'
-                ? 'bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20'
-                : status === 'at-risk'
-                ? 'bg-amber-50 text-amber-800 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20'
-                : 'bg-emerald-50/90 text-emerald-800 border-emerald-200/80 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
-            }`}
-          >
-            {status === 'over' ? (
-              <AlertTriangle className="w-3 h-3 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={2} />
-            ) : status === 'at-risk' ? (
-              <Flame className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" strokeWidth={2} />
-            ) : (
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 shrink-0 animate-pulse" />
-            )}
-            <span>
-              {status === 'over' ? 'Over Budget' : status === 'at-risk' ? 'At Risk' : 'On Track'}
-            </span>
-          </div>
+          {status !== 'on-track' && (
+            <div
+              className={`px-2.5 py-1 rounded-full text-[11px] font-medium tracking-tight border flex items-center gap-1.5 shadow-xs ${
+                status === 'over'
+                  ? 'bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20'
+                  : 'bg-amber-50 text-amber-800 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20'
+              }`}
+            >
+              {status === 'over' ? (
+                <AlertTriangle className="w-3 h-3 text-rose-600 dark:text-rose-400 shrink-0" strokeWidth={2} />
+              ) : (
+                <Flame className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" strokeWidth={2} />
+              )}
+              <span>
+                {status === 'over' ? 'Over Budget' : 'At Risk'}
+              </span>
+            </div>
+          )}
         </div>
         <div className="text-2xl font-semibold tabular-nums text-deep-blue-900 dark:text-cream-100">
           {formatCurrency(projectedMonthEndSpend, { hideDecimals: true })}

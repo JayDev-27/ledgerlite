@@ -393,4 +393,86 @@ describe('Chat Agent Tools — Local Deterministic Database Reasoning', () => {
       expect(res.totalLimit).toBeGreaterThanOrEqual(20000);
     });
   });
+
+  describe('Tools: import_extracted_transactions and add_transaction', () => {
+    it('proposes extracted transactions and resolves category names to IDs', async () => {
+      const res = (await executeTool(
+        'import_extracted_transactions',
+        {
+          transactions: [
+            {
+              date: '2026-11-12',
+              amount: 1550,
+              merchant: 'Star Bazaar',
+              category: 'Groceries',
+              paymentMethod: 'card',
+              notes: 'Weekly household supplies',
+            },
+            {
+              date: '2026-11-14',
+              amount: 420,
+              merchant: 'McDonalds',
+              category: 'Dining Out',
+              paymentMethod: 'upi',
+            },
+          ],
+        },
+        mockRepo,
+        false
+      )) as {
+        status: string;
+        count: number;
+        transactions: Array<{
+          id: string;
+          amount: number;
+          merchant: string;
+          categoryId: string;
+          category: string;
+          paymentMethod: string;
+        }>;
+      };
+
+      expect(res.status).toBe('proposed');
+      expect(res.count).toBe(2);
+      expect(res.transactions[0]?.merchant).toBe('Star Bazaar');
+      expect(res.transactions[0]?.categoryId).toBe('cat_groceries');
+      expect(res.transactions[0]?.amount).toBe(1550);
+      expect(res.transactions[1]?.merchant).toBe('McDonalds');
+      expect(res.transactions[1]?.categoryId).toBe('cat_dining');
+      expect(res.transactions[1]?.paymentMethod).toBe('upi');
+    });
+
+    it('proposes single transaction with add_transaction and respects privacy mode', async () => {
+      const res = (await executeTool(
+        'add_transaction',
+        {
+          date: '2026-11-15',
+          amount: 890,
+          merchant: 'A/C 99887766 Quick Mart',
+          category: 'Groceries',
+          paymentMethod: 'upi',
+          notes: 'Customer card 4111222233334444 purchase',
+        },
+        mockRepo,
+        true
+      )) as {
+        status: string;
+        count: number;
+        transactions: Array<{
+          merchant: string;
+          notes?: string;
+          categoryId: string;
+          amount: number;
+        }>;
+      };
+
+      expect(res.status).toBe('proposed');
+      expect(res.count).toBe(1);
+      expect(res.transactions[0]?.amount).toBe(890);
+      expect(res.transactions[0]?.categoryId).toBe('cat_groceries');
+      expect(res.transactions[0]?.merchant).toContain('[ACCOUNT REDACTED]');
+      expect(res.transactions[0]?.merchant).not.toContain('99887766');
+      expect(res.transactions[0]?.notes).toContain('[CARD REDACTED]');
+    });
+  });
 });

@@ -14,6 +14,7 @@ import type {
   AgentTurnResult,
   ToolExecutionRecord,
   MemoryProposalRecord,
+  ExtractedTransactionProposal,
 } from './types';
 import type { MemoryKind } from '@/types';
 
@@ -65,27 +66,60 @@ CRITICAL OPERATIONAL RULES:
 5. PRIVACY PROTECTION:
    - ${privacyMode ? 'Privacy Mode is ACTIVE. Personal notes, account numbers, and receipt details have been sanitized. Transmit and reason only over quantitative aggregated data.' : 'Standard privacy mode.'}
 
+6. MULTIMODAL TRANSACTION EXTRACTION & INGESTION:
+   - When the user provides files, bank statements, receipts, invoices, bills, CSV/PDF/text or image screenshots, extract all transaction details with high precision.
+   - For every detected transaction or when the user asks to add transactions, invoke 'import_extracted_transactions' with the array of items (date YYYY-MM-DD, amount in INR, merchant, category, paymentMethod, notes).
+   - In your final response, summarize what was found and inform the user they can review and add them to their ledger with 1-click.
+
 APPROVED USER MEMORY CONTEXT:
 ${memoryBlock}`;
 
   const toolExecutions: ToolExecutionRecord[] = [];
   const proposals: MemoryProposalRecord[] = [];
+  const extractedTransactions: ExtractedTransactionProposal[] = [];
 
   // Build conversation history contents
   const contents: Content[] = [];
   if (options.history && options.history.length > 0) {
     for (const h of options.history) {
+      const parts: Content['parts'] = [];
+      if (h.attachments && h.attachments.length > 0) {
+        for (const att of h.attachments) {
+          const cleanBase64 = att.data.replace(/^data:[^;]+;base64,/, '');
+          parts.push({
+            inlineData: {
+              mimeType: att.mimeType,
+              data: cleanBase64,
+            },
+          });
+        }
+      }
+      parts.push({ text: h.text });
       contents.push({
         role: h.role === 'user' ? 'user' : 'model',
-        parts: [{ text: h.text }],
+        parts,
       });
     }
   }
 
-  // Append latest user turn
+  // Append latest user turn with any attachments
+  const userParts: Content['parts'] = [];
+  if (options.attachments && options.attachments.length > 0) {
+    for (const att of options.attachments) {
+      const cleanBase64 = att.data.replace(/^data:[^;]+;base64,/, '');
+      userParts.push({
+        inlineData: {
+          mimeType: att.mimeType,
+          data: cleanBase64,
+        },
+      });
+    }
+  }
+  userParts.push({ text: userQuery });
+
   contents.push({
     role: 'user',
-    parts: [{ text: userQuery }],
+    parts: userParts,
   });
 
   const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
@@ -162,6 +196,7 @@ ${memoryBlock}`;
         text: 'AI request limit reached or connection unavailable. Operating in offline deterministic mode. Please verify your Gemini API key and daily quota in Settings.',
         toolExecutions,
         proposals,
+        extractedTransactions,
         modelUsed: 'offline-fallback',
       };
     }
@@ -172,6 +207,7 @@ ${memoryBlock}`;
         text: round1Response.text || EMPTY_ANSWER_FALLBACK,
         toolExecutions,
         proposals,
+        extractedTransactions,
         modelUsed: modelName,
       };
     }
@@ -192,6 +228,11 @@ ${memoryBlock}`;
             kind: result.kind as MemoryKind,
             text: String(result.text),
           });
+        }
+        if (fnName === 'import_extracted_transactions' || fnName === 'add_transaction') {
+          if (Array.isArray(result.transactions)) {
+            extractedTransactions.push(...(result.transactions as ExtractedTransactionProposal[]));
+          }
         }
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
@@ -237,6 +278,7 @@ ${memoryBlock}`;
           toolExecutions.map((t) => `${t.name}: processed`).join(', '),
         toolExecutions,
         proposals,
+        extractedTransactions,
         modelUsed: 'offline-fallback',
       };
     }
@@ -252,6 +294,7 @@ ${memoryBlock}`;
         text: text || EMPTY_ANSWER_FALLBACK,
         toolExecutions,
         proposals,
+        extractedTransactions,
         modelUsed: modelName,
       };
     }
@@ -272,6 +315,11 @@ ${memoryBlock}`;
             kind: result.kind as MemoryKind,
             text: String(result.text),
           });
+        }
+        if (fnName === 'import_extracted_transactions' || fnName === 'add_transaction') {
+          if (Array.isArray(result.transactions)) {
+            extractedTransactions.push(...(result.transactions as ExtractedTransactionProposal[]));
+          }
         }
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
@@ -316,6 +364,7 @@ ${memoryBlock}`;
       text: finalText || EMPTY_ANSWER_FALLBACK,
       toolExecutions,
       proposals,
+      extractedTransactions,
       modelUsed: modelName,
     };
   } catch (err: unknown) {
@@ -324,6 +373,7 @@ ${memoryBlock}`;
       text: 'AI request limit reached or connection error. Operating in offline deterministic mode. Please verify your Gemini API key and daily quota in Settings.',
       toolExecutions,
       proposals,
+      extractedTransactions,
       modelUsed: 'offline-fallback',
     };
   }

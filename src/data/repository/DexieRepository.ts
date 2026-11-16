@@ -202,6 +202,12 @@ export class DexieRepository implements Repository {
     return newTx;
   }
 
+  async addTransaction(
+    tx: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
+  ): Promise<Transaction> {
+    return this.createTransaction(tx);
+  }
+
   async updateTransaction(
     id: string,
     updates: Partial<Transaction>

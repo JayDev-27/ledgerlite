@@ -195,27 +195,25 @@ export const DashboardKpis: React.FC<DashboardKpisProps> = ({
           </div>
         </div>
         <div className="mt-2 flex items-center justify-between">
-          <span
-            className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${
-              data.isMonthlyView === false || !budgetStatus
-                ? 'bg-cream-200 dark:bg-dark-elevated text-deep-blue-700 dark:text-cream-300 border border-cream-300 dark:border-dark-border'
+          {(data.isMonthlyView === false || !budgetStatus || budgetStatus.status === 'over' || budgetStatus.status === 'at-risk') ? (
+            <span
+              className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${
+                data.isMonthlyView === false || !budgetStatus
+                  ? 'bg-cream-200 dark:bg-dark-elevated text-deep-blue-700 dark:text-cream-300 border border-cream-300 dark:border-dark-border'
+                  : budgetStatus.status === 'over'
+                  ? 'bg-rose-50 text-rose-700 border border-rose-200/80 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20'
+                  : 'bg-amber-50 text-amber-800 border border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20'
+              }`}
+            >
+              {data.isMonthlyView === false
+                ? 'Monthly Only'
+                : !budgetStatus
+                ? 'No Budget'
                 : budgetStatus.status === 'over'
-                ? 'bg-rose-50 text-rose-700 border border-rose-200/80 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20'
-                : budgetStatus.status === 'at-risk'
-                ? 'bg-amber-50 text-amber-800 border border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20'
-                : 'bg-emerald-50/90 text-emerald-800 border border-emerald-200/80 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
-            }`}
-          >
-            {data.isMonthlyView === false
-              ? 'Monthly Only'
-              : !budgetStatus
-              ? 'No Budget'
-              : budgetStatus.status === 'over'
-              ? 'Over Budget'
-              : budgetStatus.status === 'at-risk'
-              ? 'At Risk'
-              : 'On Track'}
-          </span>
+                ? 'Over Budget'
+                : 'At Risk'}
+            </span>
+          ) : <span />}
           <span className="text-[11px] text-deep-blue-600 dark:text-cream-300 tabular-nums">
             {data.isMonthlyView === false
               ? 'Select month view'

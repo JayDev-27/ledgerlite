@@ -1,6 +1,6 @@
 import { FunctionDeclaration, Type } from '@google/genai';
 import type { Repository } from '@/data/repository';
-import type { Transaction, Budget, Category } from '@/types';
+import type { Transaction, Budget, Category, PaymentMethod } from '@/types';
 import { sanitizeSensitiveText } from '@/lib/gemini/privacySanitizer';
 import type {
   QueryTransactionsArgs,
@@ -9,6 +9,9 @@ import type {
   GetBudgetStatusArgs,
   SetBudgetArgs,
   ProposeMemoryArgs,
+  ImportExtractedTransactionsArgs,
+  AddTransactionArgs,
+  ExtractedTransactionProposal,
 } from './types';
 
 export const CHAT_TOOLS_DECLARATIONS: FunctionDeclaration[] = [
@@ -174,6 +177,88 @@ export const CHAT_TOOLS_DECLARATIONS: FunctionDeclaration[] = [
         },
       },
       required: ['kind', 'text'],
+    },
+  },
+  {
+    name: 'import_extracted_transactions',
+    description:
+      'Propose one or more financial transactions extracted from an uploaded receipt, bill, bank statement, or user prompt for ledger review and 1-click import.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        transactions: {
+          type: Type.ARRAY,
+          description: 'List of extracted transactions to propose for user ledger import',
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              date: {
+                type: Type.STRING,
+                description: 'Transaction date in YYYY-MM-DD format',
+              },
+              amount: {
+                type: Type.NUMBER,
+                description: 'Transaction amount in INR (positive number)',
+              },
+              merchant: {
+                type: Type.STRING,
+                description: 'Merchant, vendor, payee, or billing entity name',
+              },
+              category: {
+                type: Type.STRING,
+                description: 'Category name (e.g. Groceries, Dining Out, Utilities) or category ID',
+              },
+              paymentMethod: {
+                type: Type.STRING,
+                enum: ['upi', 'card', 'cash', 'net_banking', 'wallet'],
+                description: 'Payment method if identifiable',
+              },
+              notes: {
+                type: Type.STRING,
+                description: 'Optional notes, bill numbers, or context',
+              },
+            },
+            required: ['date', 'amount', 'merchant'],
+          },
+        },
+      },
+      required: ['transactions'],
+    },
+  },
+  {
+    name: 'add_transaction',
+    description:
+      'Propose a single transaction specified by the user or extracted from a document for ledger review and import.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        date: {
+          type: Type.STRING,
+          description: 'Transaction date in YYYY-MM-DD format',
+        },
+        amount: {
+          type: Type.NUMBER,
+          description: 'Transaction amount in INR (positive number)',
+        },
+        merchant: {
+          type: Type.STRING,
+          description: 'Merchant or payee name',
+        },
+        category: {
+          type: Type.STRING,
+          description: 'Category name or ID',
+        },
+        paymentMethod: {
+          type: Type.STRING,
+          enum: ['upi', 'card', 'cash', 'net_banking', 'wallet'],
+          description: 'Payment method',
+        },
+        notes: {
+          type: Type.STRING,
+          description: 'Notes or receipt details',
+        },
+      },
+      required: ['date', 'amount', 'merchant'],
     },
   },
 ];
@@ -564,6 +649,81 @@ export async function executeTool(
         text: newItem.text,
         requiresUserApproval: true,
         message: `Proposed new ${newItem.kind.replace('_', ' ')} memory for user confirmation: "${newItem.text}"`,
+      };
+    }
+
+    case 'import_extracted_transactions': {
+      const impArgs = args as unknown as ImportExtractedTransactionsArgs;
+      const rawList = Array.isArray(impArgs.transactions) ? impArgs.transactions : [];
+      const proposals: ExtractedTransactionProposal[] = rawList.map((item, idx) => {
+        const catInput = item.category?.trim() || 'Groceries';
+        const canonicalCatId = resolveCategoryId(catInput, categories);
+        const resolvedCatName = categoryMap.get(canonicalCatId) || catInput;
+
+        let dateStr = item.date?.trim() || '2026-11-15';
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          dateStr = new Date().toISOString().slice(0, 10);
+        }
+
+        const validPaymentMethods: PaymentMethod[] = ['upi', 'card', 'cash', 'net_banking', 'wallet'];
+        const paymentMethod = validPaymentMethods.includes(item.paymentMethod as PaymentMethod)
+          ? (item.paymentMethod as PaymentMethod)
+          : 'upi';
+
+        return {
+          id: `tx-prop-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
+          date: dateStr,
+          amount: Math.round(Math.abs(Number(item.amount) || 0) * 100) / 100,
+          merchant: privacyMode ? sanitizeSensitiveText(item.merchant || 'Unknown Merchant') : (item.merchant || 'Unknown Merchant'),
+          categoryId: canonicalCatId,
+          category: resolvedCatName,
+          paymentMethod,
+          notes: item.notes ? (privacyMode ? sanitizeSensitiveText(item.notes) : item.notes) : undefined,
+          confidence: 0.95,
+        };
+      });
+
+      return {
+        status: 'proposed',
+        count: proposals.length,
+        transactions: proposals,
+        message: `Extracted ${proposals.length} transaction(s) ready for ledger review and import.`,
+      };
+    }
+
+    case 'add_transaction': {
+      const singleArgs = args as unknown as AddTransactionArgs;
+      const catInput = singleArgs.category?.trim() || 'Groceries';
+      const canonicalCatId = resolveCategoryId(catInput, categories);
+      const resolvedCatName = categoryMap.get(canonicalCatId) || catInput;
+
+      let dateStr = singleArgs.date?.trim() || '2026-11-15';
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        dateStr = new Date().toISOString().slice(0, 10);
+      }
+
+      const validPaymentMethods: PaymentMethod[] = ['upi', 'card', 'cash', 'net_banking', 'wallet'];
+      const paymentMethod = validPaymentMethods.includes(singleArgs.paymentMethod as PaymentMethod)
+        ? (singleArgs.paymentMethod as PaymentMethod)
+        : 'upi';
+
+      const proposal: ExtractedTransactionProposal = {
+        id: `tx-prop-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        date: dateStr,
+        amount: Math.round(Math.abs(Number(singleArgs.amount) || 0) * 100) / 100,
+        merchant: privacyMode ? sanitizeSensitiveText(singleArgs.merchant || 'Unknown Merchant') : (singleArgs.merchant || 'Unknown Merchant'),
+        categoryId: canonicalCatId,
+        category: resolvedCatName,
+        paymentMethod,
+        notes: singleArgs.notes ? (privacyMode ? sanitizeSensitiveText(singleArgs.notes) : singleArgs.notes) : undefined,
+        confidence: 0.95,
+      };
+
+      return {
+        status: 'proposed',
+        count: 1,
+        transactions: [proposal],
+        message: `Transaction for ₹${proposal.amount} at ${proposal.merchant} ready for ledger review and import.`,
       };
     }
 

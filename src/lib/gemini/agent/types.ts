@@ -45,6 +45,46 @@ export interface ProposeMemoryArgs {
   text: string;
 }
 
+export interface ExtractedTransactionItem {
+  date: string;
+  amount: number;
+  merchant: string;
+  category?: string;
+  paymentMethod?: 'upi' | 'card' | 'cash' | 'net_banking' | 'wallet';
+  notes?: string;
+}
+
+export interface ImportExtractedTransactionsArgs {
+  transactions: ExtractedTransactionItem[];
+}
+
+export interface AddTransactionArgs {
+  date: string;
+  amount: number;
+  merchant: string;
+  category?: string;
+  paymentMethod?: 'upi' | 'card' | 'cash' | 'net_banking' | 'wallet';
+  notes?: string;
+}
+
+export interface ExtractedTransactionProposal {
+  id: string;
+  date: string;
+  amount: number;
+  merchant: string;
+  category?: string;
+  categoryId?: string;
+  paymentMethod?: 'upi' | 'card' | 'cash' | 'net_banking' | 'wallet';
+  notes?: string;
+  confidence?: number;
+}
+
+export interface FileAttachment {
+  name: string;
+  mimeType: string;
+  data: string; // base64
+}
+
 export interface ToolExecutionRecord {
   name: string;
   args: Record<string, unknown>;
@@ -62,8 +102,10 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
   timestamp: string;
+  attachments?: FileAttachment[];
   toolExecutions?: ToolExecutionRecord[];
   proposals?: MemoryProposalRecord[];
+  extractedTransactions?: ExtractedTransactionProposal[];
   modelUsed?: string;
 }
 
@@ -71,12 +113,14 @@ export interface AgentTurnResult {
   text: string;
   toolExecutions: ToolExecutionRecord[];
   proposals: MemoryProposalRecord[];
+  extractedTransactions: ExtractedTransactionProposal[];
   modelUsed: string;
 }
 
 export interface AgentRunOptions {
   userQuery: string;
-  history?: Array<{ role: 'user' | 'assistant'; text: string }>;
+  attachments?: FileAttachment[];
+  history?: Array<{ role: 'user' | 'assistant'; text: string; attachments?: FileAttachment[] }>;
   apiKey: string;
   model?: string;
   privacyMode?: boolean;

@@ -1,16 +1,40 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Link } from 'react-router-dom';
-import { ArrowUp, ChevronDown, Check, X, Calculator, BookmarkPlus, ArrowUpRight } from 'lucide-react';
+import {
+  ArrowUp,
+  ChevronDown,
+  Check,
+  X,
+  Calculator,
+  BookmarkPlus,
+  ArrowUpRight,
+  Paperclip,
+  FileText,
+  Receipt,
+} from 'lucide-react';
 import clsx from 'clsx';
 import { repository } from '@/data/repository';
 import { secretsAdapter } from '@/lib/secrets';
 import { useSettingsStore } from '@/store/settingsStore';
 import { requestQueue, type TodayUsageStats } from '@/lib/gemini/requestQueue';
 import { runAgentTurn } from '@/lib/gemini/agent/agentLoop';
-import type { ChatMessage, MemoryProposalRecord } from '@/lib/gemini/agent/types';
+import type {
+  ChatMessage,
+  MemoryProposalRecord,
+  ExtractedTransactionProposal,
+} from '@/lib/gemini/agent/types';
 import { MemoryManager } from './components/MemoryManager';
 import { BrandGlyph } from '@/components/brand/BrandMark';
+
+interface ComposerAttachment {
+  id: string;
+  name: string;
+  mimeType: string;
+  data: string; // base64 data URL
+  previewUrl?: string;
+  size: number;
+}
 
 const SUGGESTED_PROMPTS = [
   { q: 'Summarise this week', hint: 'Spend, top categories, anything unusual' },
@@ -131,9 +155,13 @@ export const AssistantPage: React.FC = () => {
   const [expandedTools, setExpandedTools] = useState<string | null>(null);
   const [proposalStatuses, setProposalStatuses] = useState<Record<string, 'pending' | 'approved' | 'rejected'>>({});
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
+  const [txStatuses, setTxStatuses] = useState<Record<string, 'pending' | 'saving' | 'added' | 'error'>>({});
+  const [isImportingBatch, setIsImportingBatch] = useState(false);
   const streamIntervalRef = useRef<number | null>(null);
   const chatEndRef = useRef<HTMLLIElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     return () => {
@@ -193,13 +221,159 @@ export const AssistantPage: React.FC = () => {
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [inputMessage]);
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const validMimes = [
+      'image/png',
+      'image/jpeg',
+      'image/webp',
+      'application/pdf',
+      'text/csv',
+      'text/plain',
+    ];
+
+    Array.from(files).forEach((file) => {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      const isAccepted =
+        validMimes.includes(file.type) ||
+        (ext === 'csv' && (file.type.includes('csv') || file.type.includes('text') || !file.type)) ||
+        (ext === 'pdf' && (file.type.includes('pdf') || !file.type)) ||
+        ['png', 'jpg', 'jpeg', 'webp', 'txt'].includes(ext || '');
+
+      if (!isAccepted) {
+        alert(`File format not supported: ${file.name}. Please upload PDF, CSV, TXT, PNG, JPEG, or WebP.`);
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`File exceeds 10MB limit: ${file.name}`);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const resultStr = reader.result as string;
+        const isImage = file.type.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp'].includes(ext || '');
+        let mimeType = file.type;
+        if (!mimeType) {
+          if (ext === 'csv') mimeType = 'text/csv';
+          else if (ext === 'pdf') mimeType = 'application/pdf';
+          else if (ext === 'txt') mimeType = 'text/plain';
+          else if (ext === 'png') mimeType = 'image/png';
+          else if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+          else if (ext === 'webp') mimeType = 'image/webp';
+        }
+
+        setAttachments((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            name: file.name,
+            mimeType: mimeType || 'application/octet-stream',
+            data: resultStr,
+            previewUrl: isImage ? resultStr : undefined,
+            size: file.size,
+          },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleAddTransaction = async (tx: ExtractedTransactionProposal) => {
+    setTxStatuses((prev) => ({ ...prev, [tx.id]: 'saving' }));
+    try {
+      const categories = await repository.getCategories();
+      let categoryId = tx.categoryId;
+      if (!categoryId || !categories.some((c) => c.id === categoryId)) {
+        const match = categories.find(
+          (c) => c.name.toLowerCase() === (tx.category || '').toLowerCase()
+        );
+        categoryId = match?.id || categories[0]?.id || 'cat_other';
+      }
+
+      await repository.addTransaction({
+        amount: tx.amount,
+        currency: 'INR',
+        date: tx.date,
+        merchant: tx.merchant,
+        categoryId,
+        paymentMethod: tx.paymentMethod || 'upi',
+        notes: tx.notes || 'Extracted via Assistant',
+        tags: ['ai-imported'],
+        source: 'ai',
+        confidence: tx.confidence ?? 0.95,
+      });
+
+      setTxStatuses((prev) => ({ ...prev, [tx.id]: 'added' }));
+    } catch (err) {
+      console.error('Failed to add transaction:', err);
+      setTxStatuses((prev) => ({ ...prev, [tx.id]: 'error' }));
+    }
+  };
+
+  const handleImportAll = async (txs: ExtractedTransactionProposal[]) => {
+    setIsImportingBatch(true);
+    try {
+      const categories = await repository.getCategories();
+      for (const tx of txs) {
+        if (txStatuses[tx.id] === 'added') continue;
+        setTxStatuses((prev) => ({ ...prev, [tx.id]: 'saving' }));
+        let categoryId = tx.categoryId;
+        if (!categoryId || !categories.some((c) => c.id === categoryId)) {
+          const match = categories.find(
+            (c) => c.name.toLowerCase() === (tx.category || '').toLowerCase()
+          );
+          categoryId = match?.id || categories[0]?.id || 'cat_other';
+        }
+
+        await repository.addTransaction({
+          amount: tx.amount,
+          currency: 'INR',
+          date: tx.date,
+          merchant: tx.merchant,
+          categoryId,
+          paymentMethod: tx.paymentMethod || 'upi',
+          notes: tx.notes || 'Extracted via Assistant',
+          tags: ['ai-imported'],
+          source: 'ai',
+          confidence: tx.confidence ?? 0.95,
+        });
+
+        setTxStatuses((prev) => ({ ...prev, [tx.id]: 'added' }));
+      }
+    } catch (err) {
+      console.error('Failed batch import:', err);
+    } finally {
+      setIsImportingBatch(false);
+    }
+  };
+
   const handleSend = async (userText: string) => {
     const trimmed = userText.trim();
-    if (!trimmed || isLoading) return;
+    if ((!trimmed && attachments.length === 0) || isLoading) return;
 
-    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', text: trimmed, timestamp: new Date().toISOString() };
+    const currentAttachments = [...attachments];
+    const userMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      text: trimmed,
+      timestamp: new Date().toISOString(),
+      attachments: currentAttachments.map((a) => ({
+        name: a.name,
+        mimeType: a.mimeType,
+        data: a.data,
+      })),
+    };
     setMessages((prev) => [...prev, userMsg]);
     setInputMessage('');
+    setAttachments([]);
     setIsLoading(true);
     setTimeout(() => scrollToBottom('smooth'), 50);
 
@@ -213,10 +387,21 @@ export const AssistantPage: React.FC = () => {
         return;
       }
 
-      const history = messages.slice(-8).map((m) => ({ role: m.role, text: m.text }));
+      const history = messages.slice(-8).map((m) => ({ role: m.role, text: m.text, attachments: m.attachments }));
+      const queryText =
+        trimmed ||
+        (currentAttachments.length > 0
+          ? 'Please analyze the attached document(s)/receipt(s), extract any transactions or financial information, and summarize key insights.'
+          : '');
+
       const result = await runAgentTurn(
         {
-          userQuery: trimmed,
+          userQuery: queryText,
+          attachments: currentAttachments.map((a) => ({
+            name: a.name,
+            mimeType: a.mimeType,
+            data: a.data,
+          })),
           history,
           apiKey,
           model: settings.geminiLightModel || 'gemini-3.5-flash-lite',
@@ -229,6 +414,16 @@ export const AssistantPage: React.FC = () => {
         setProposalStatuses((prev) => {
           const next = { ...prev };
           for (const p of result.proposals) next[p.memoryId] = 'pending';
+          return next;
+        });
+      }
+
+      if (result.extractedTransactions?.length) {
+        setTxStatuses((prev) => {
+          const next = { ...prev };
+          for (const tx of result.extractedTransactions) {
+            if (!next[tx.id]) next[tx.id] = 'pending';
+          }
           return next;
         });
       }
@@ -249,6 +444,7 @@ export const AssistantPage: React.FC = () => {
             timestamp: new Date().toISOString(),
             toolExecutions: result.toolExecutions,
             proposals: result.proposals,
+            extractedTransactions: result.extractedTransactions,
             modelUsed: result.modelUsed,
           },
         ]);
@@ -266,6 +462,7 @@ export const AssistantPage: React.FC = () => {
           timestamp: new Date().toISOString(),
           toolExecutions: result.toolExecutions,
           proposals: result.proposals,
+          extractedTransactions: result.extractedTransactions,
           modelUsed: result.modelUsed,
         },
       ]);
@@ -422,7 +619,28 @@ export const AssistantPage: React.FC = () => {
                     return (
                       <li key={m.id} className="flex justify-end">
                         <div className="max-w-[80%] px-4 py-2.5 rounded-2xl rounded-br-md bg-deep-blue-950 text-white dark:bg-white/[0.08] dark:text-white text-[15px] leading-relaxed">
-                          {m.text}
+                          {m.attachments && m.attachments.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mb-2 justify-end">
+                              {m.attachments.map((att, aIdx) => (
+                                <div
+                                  key={aIdx}
+                                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/15 text-white text-[11px] border border-white/20"
+                                >
+                                  {att.mimeType.startsWith('image/') ? (
+                                    <img
+                                      src={att.data.startsWith('data:') ? att.data : `data:${att.mimeType};base64,${att.data}`}
+                                      alt={att.name}
+                                      className="w-4 h-4 rounded object-cover shrink-0"
+                                    />
+                                  ) : (
+                                    <FileText className="w-3.5 h-3.5 opacity-80 shrink-0" />
+                                  )}
+                                  <span className="truncate max-w-[140px] font-medium">{att.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {m.text && <div>{m.text}</div>}
                         </div>
                       </li>
                     );
@@ -521,6 +739,105 @@ export const AssistantPage: React.FC = () => {
                             </div>
                           );
                         })}
+
+                        {m.extractedTransactions && m.extractedTransactions.length > 0 && (() => {
+                          const pendingCount = m.extractedTransactions.filter(
+                            (tx) => (txStatuses[tx.id] || 'pending') === 'pending'
+                          ).length;
+                          const addedCount = m.extractedTransactions.filter(
+                            (tx) => txStatuses[tx.id] === 'added'
+                          ).length;
+
+                          return (
+                            <div className="rounded-2xl border border-cream-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.02] p-4 animate-fadeIn space-y-3">
+                              <div className="flex items-center justify-between gap-3 border-b border-cream-200/60 dark:border-white/[0.05] pb-3">
+                                <div className="flex items-center gap-2 text-[13px] font-medium text-deep-blue-950 dark:text-white">
+                                  <Receipt className="w-4 h-4 text-emerald-600 dark:text-emerald-400" strokeWidth={1.75} />
+                                  <span>Extracted Transactions ({m.extractedTransactions.length})</span>
+                                  {addedCount > 0 && (
+                                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-medium">
+                                      {addedCount} added
+                                    </span>
+                                  )}
+                                </div>
+                                {pendingCount > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleImportAll(m.extractedTransactions!)}
+                                    disabled={isImportingBatch}
+                                    className="h-8 px-3 rounded-lg text-[12px] font-medium bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                                  >
+                                    <Check className="w-3.5 h-3.5" />
+                                    <span>Import All ({pendingCount})</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                                {m.extractedTransactions.map((tx) => {
+                                  const status = txStatuses[tx.id] || 'pending';
+                                  return (
+                                    <div
+                                      key={tx.id}
+                                      className="flex items-center justify-between gap-3 p-3 rounded-xl border border-cream-100 dark:border-white/[0.04] bg-cream-50/50 dark:bg-white/[0.02] transition-colors"
+                                    >
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-medium text-[14px] text-deep-blue-950 dark:text-white truncate">
+                                            {tx.merchant}
+                                          </span>
+                                          <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-deep-blue-50 dark:bg-white/[0.06] text-deep-blue-900/60 dark:text-white/60">
+                                            {tx.category || 'Expense'}
+                                          </span>
+                                        </div>
+                                        <div className="mt-0.5 flex items-center gap-2 text-[12px] text-deep-blue-900/45 dark:text-white/40">
+                                          <span>{tx.date}</span>
+                                          <span>•</span>
+                                          <span className="capitalize">{tx.paymentMethod || 'upi'}</span>
+                                          {tx.notes && (
+                                            <>
+                                              <span>•</span>
+                                              <span className="truncate max-w-[150px]">{tx.notes}</span>
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-3 shrink-0">
+                                        <span className="font-semibold text-[14px] text-deep-blue-950 dark:text-white tabular-nums">
+                                          ₹{Number(tx.amount).toLocaleString('en-IN')}
+                                        </span>
+                                        {status === 'pending' ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleAddTransaction(tx)}
+                                            className="h-8 px-2.5 rounded-lg text-[12px] font-medium bg-deep-blue-950 text-white dark:bg-white dark:text-black hover:opacity-90 transition-opacity"
+                                          >
+                                            Add to Transactions
+                                          </button>
+                                        ) : status === 'saving' ? (
+                                          <span className="text-[12px] text-deep-blue-900/45 dark:text-white/45">Adding…</span>
+                                        ) : status === 'added' ? (
+                                          <span className="inline-flex items-center gap-1 text-[12px] font-medium text-emerald-600 dark:text-emerald-400">
+                                            <Check className="w-3.5 h-3.5" /> Added
+                                          </span>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleAddTransaction(tx)}
+                                            className="h-8 px-2.5 rounded-lg text-[12px] font-medium bg-rose-600 text-white"
+                                          >
+                                            Retry
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </li>
                   );
@@ -555,35 +872,93 @@ export const AssistantPage: React.FC = () => {
                 e.preventDefault();
                 handleSend(inputMessage);
               }}
-              className="flex items-end gap-2 p-2 pl-4 liquid-glass rounded-[22px]"
+              className="flex flex-col liquid-glass rounded-[22px] overflow-hidden"
             >
-              <label htmlFor="assistant-input" className="sr-only">
-                Ask the assistant
-              </label>
-              <textarea
-                id="assistant-input"
-                ref={inputRef}
-                rows={1}
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend(inputMessage);
+              {/* Attachment preview chips */}
+              {attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 p-2.5 pb-1 border-b border-cream-200/50 dark:border-white/[0.06]">
+                  {attachments.map((att) => (
+                    <div
+                      key={att.id}
+                      className="flex items-center gap-2 pl-2 pr-1.5 py-1 rounded-xl bg-white/80 dark:bg-white/[0.08] border border-cream-200 dark:border-white/[0.1] text-[12px] shadow-2xs"
+                    >
+                      {att.previewUrl ? (
+                        <img
+                          src={att.previewUrl}
+                          alt={att.name}
+                          className="w-5 h-5 rounded object-cover shrink-0 ring-1 ring-black/10"
+                        />
+                      ) : (
+                        <FileText className="w-4 h-4 text-deep-blue-900/60 dark:text-white/60 shrink-0" />
+                      )}
+                      <span className="truncate max-w-[140px] font-medium text-deep-blue-950 dark:text-white">
+                        {att.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setAttachments((prev) => prev.filter((a) => a.id !== att.id))}
+                        className="p-0.5 rounded-full hover:bg-cream-200 dark:hover:bg-white/10 text-deep-blue-900/50 dark:text-white/40 hover:text-deep-blue-950 dark:hover:text-white transition-colors"
+                        title="Remove attachment"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-end gap-2 p-2 pl-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/png,image/jpeg,image/webp,application/pdf,text/csv,text/plain,.pdf,.csv,.txt,.png,.jpg,.jpeg,.webp"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading}
+                  aria-label="Attach file or image"
+                  title="Upload bank statement, bill, CSV, PDF, or receipt image"
+                  className="grid place-items-center w-9 h-9 rounded-full shrink-0 text-deep-blue-900/50 dark:text-white/45 hover:text-deep-blue-950 dark:hover:text-white hover:bg-deep-blue-50/60 dark:hover:bg-white/[0.05] disabled:opacity-25 transition-colors mb-0.5"
+                >
+                  <Paperclip className="w-4 h-4" strokeWidth={2} />
+                </button>
+
+                <label htmlFor="assistant-input" className="sr-only">
+                  Ask the assistant
+                </label>
+                <textarea
+                  id="assistant-input"
+                  ref={inputRef}
+                  rows={1}
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend(inputMessage);
+                    }
+                  }}
+                  placeholder={
+                    attachments.length > 0
+                      ? 'Add instructions or press enter to analyze…'
+                      : 'Ask about spending, or attach receipts, statements…'
                   }
-                }}
-                placeholder="Ask about spending, budgets or what you can afford…"
-                disabled={isLoading}
-                className="flex-1 resize-none bg-transparent py-2 text-[15px] leading-6 text-deep-blue-950 dark:text-white placeholder:text-deep-blue-900/35 dark:placeholder:text-white/30 focus:outline-none focus-visible:outline-none"
-              />
-              <button
-                type="submit"
-                disabled={!inputMessage.trim() || isLoading}
-                aria-label="Send"
-                className="grid place-items-center w-9 h-9 rounded-full shrink-0 bg-deep-blue-950 text-white dark:bg-white dark:text-black disabled:opacity-25 transition-opacity"
-              >
-                <ArrowUp className="w-4 h-4" strokeWidth={2.25} />
-              </button>
+                  disabled={isLoading}
+                  className="flex-1 resize-none bg-transparent py-2 text-[15px] leading-6 text-deep-blue-950 dark:text-white placeholder:text-deep-blue-900/35 dark:placeholder:text-white/30 focus:outline-none focus-visible:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={(!inputMessage.trim() && attachments.length === 0) || isLoading}
+                  aria-label="Send"
+                  className="grid place-items-center w-9 h-9 rounded-full shrink-0 bg-deep-blue-950 text-white dark:bg-white dark:text-black disabled:opacity-25 transition-opacity"
+                >
+                  <ArrowUp className="w-4 h-4" strokeWidth={2.25} />
+                </button>
+              </div>
             </form>
             <p className="mt-2.5 text-center text-[11px] text-deep-blue-900/35 dark:text-white/25">
               Calculated from your ledger. Not financial advice.

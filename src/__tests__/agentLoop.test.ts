@@ -287,4 +287,98 @@ describe('Agentic Chat Assistant Loop — Max 2 Tool Rounds & Code Computation',
     );
     expect(result.text).toContain('₹40,000');
   });
+
+  it('includes multimodal attachment inlineData in user turn contents and handles import_extracted_transactions', async () => {
+    mockGenerateContent.mockResolvedValueOnce({
+      functionCalls: [
+        {
+          name: 'import_extracted_transactions',
+          args: {
+            transactions: [
+              {
+                date: '2026-11-14',
+                amount: 720,
+                merchant: 'Swiggy Instamart',
+                category: 'Groceries',
+                paymentMethod: 'upi',
+              },
+            ],
+          },
+        },
+      ],
+      candidates: [
+        {
+          content: {
+            role: 'model',
+            parts: [
+              {
+                functionCall: {
+                  name: 'import_extracted_transactions',
+                  args: {
+                    transactions: [
+                      {
+                        date: '2026-11-14',
+                        amount: 720,
+                        merchant: 'Swiggy Instamart',
+                        category: 'Groceries',
+                        paymentMethod: 'upi',
+                      },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    mockGenerateContent.mockResolvedValueOnce({
+      text: 'I detected 1 transaction of ₹720 from your receipt image at Swiggy Instamart. Click "Add to Transactions" to add it to your ledger.',
+      functionCalls: undefined,
+    });
+
+    const result = await runAgentTurn(
+      {
+        userQuery: 'Analyze this receipt and add any transactions',
+        attachments: [
+          {
+            name: 'receipt.png',
+            mimeType: 'image/png',
+            data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+          },
+        ],
+        apiKey: 'test-key',
+      },
+      mockRepo,
+      mockQueue
+    );
+
+    expect(mockGenerateContent).toHaveBeenCalledTimes(2);
+
+    // Verify first call passed inlineData in user turn
+    const firstCallArgs = mockGenerateContent.mock.calls[0]?.[0];
+    const userTurn = firstCallArgs?.contents.find((c: { role: string }) => c.role === 'user');
+    expect(userTurn).toBeDefined();
+    expect(userTurn.parts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          inlineData: {
+            mimeType: 'image/png',
+            data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+          },
+        }),
+        expect.objectContaining({
+          text: 'Analyze this receipt and add any transactions',
+        }),
+      ])
+    );
+
+    // Verify extractedTransactions are returned in AgentTurnResult
+    expect(result.extractedTransactions.length).toBe(1);
+    expect(result.extractedTransactions[0]?.merchant).toBe('Swiggy Instamart');
+    expect(result.extractedTransactions[0]?.amount).toBe(720);
+    expect(result.extractedTransactions[0]?.categoryId).toBe('cat_groceries');
+    expect(result.text).toContain('₹720');
+  });
 });
