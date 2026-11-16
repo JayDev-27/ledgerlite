@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Cursor Liquid & Water Ripple Simulation</title>
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #07080a;
+      touch-action: none;
+    }
+
+    #liquid-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      cursor: crosshair;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="liquid-canvas"></canvas>
+
+  <script>
+    // =========================================================================
+    // CONFIGURATION
+    // Reference: Awwwards "Cursor Liquid Effect" (Mireia Ortega / Lucy Hardcastle)
+    // =========================================================================
+    const CONFIG = {
+      // Background Image:
+      // Provide an image URL (e.g. 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1920&q=80')
+      // Leave as empty string "" to use the built-in dark obsidian studio luxury texture.
+      backgroundImageUrl: "",
+
+      // Wave-equation heightfield physics & fluid viscosity
+      rippleRadius: 0.038,        // Size of cursor ripple wake (in normalized screen space)
+      waveSpeed: 1.0,             // Simulation wave propagation multiplier
+      damping: 0.982,             // Viscous energy retention (0.975 = heavy gel, 0.982 = viscous water, 0.990 = ripple)
+
+      // Cursor & touch interaction
+      mouseWakeStrength: 0.48,    // Amplitude of wave impulse injected during cursor motion
+      clickSplashStrength: 0.95,  // Amplitude of radial splash crater on click or tap
+      clickSplashRadius: 0.070,   // Physical radius of click splash
+      cursorLerp: 0.32,           // Interpolation smoothing between frames (smooth continuous wake)
+
+      // Ambient raindrops (strictly false by default)
+      ambientDrops: false,        // Set to true to enable random gentle water droplets when idle
+      ambientDropInterval: 1800,  // Milliseconds between ambient drops (if enabled)
+      ambientDropStrength: 0.40,  // Intensity of ambient drops
+
+      // Optical refraction, chromatic aberration & organic fluid noise (GLSL)
+      refractionStrength: 0.90,   // Optical lensing & normal displacement magnitude
+      chromaticAberration: 0.042, // Spectral RGB separation offset along steep wave gradients
+      noiseStrength: 0.70,        // Simplex organic fluid turbulence modulation
+      specularShininess: 42.0,    // Sharpness/tightness of glossy highlights
+      specularStrength: 0.58,     // Brightness of specular glints on wave crests
+      fresnelSheen: 0.35,         // Grazing-angle rim light & iridescent meniscus sheen
+
+      // Simulation resolution
+      simResolution: 512,         // 512 produces silky fluid detail at 60fps
+    };
+
+    // =========================================================================
+    // GLSL SHADER SOURCES
+    // =========================================================================
+
+    const VS_QUAD = `
+      attribute vec2 a_position;
+      varying vec2 v_uv;
+      void main() {
+        v_uv = a_position * 0.5 + 0.5;
+        gl_Position = vec4(a_position, 0.0, 1.0);
+      }
+    `;
+
+    // 2D Wave-Equation Heightfield Simulation (Ping-Pong FBO)
+    const FS_SIMULATION = `
+      precision highp float;
+      varying vec2 v_uv;
+
+      uniform sampler2D u_current;
+      uniform vec2 u_texel;
+      uniform vec2 u_aspect_vec;
+      uniform float u_damping;
+
+      // Mouse continuous wake
+      uniform float u_mouse_active;
+      uniform vec2 u_prev_cursor;
+      uniform vec2 u_curr_cursor;
+      uniform float u_mouse_radius;
+      uniform float u_mouse_strength;
+
+      // Click splash
+      uniform float u_splash_active;
+      uniform vec2 u_splash_pos;
+      uniform float u_splash_radius;
+      uniform float u_splash_strength;
+
+      // Ambient drop
+      uniform float u_ambient_active;
+      uniform vec2 u_ambient_pos;
+      uniform float u_ambient_radius;
+      uniform float u_ambient_strength;
+
+      void main() {
+        vec4 info = texture2D(u_current, v_uv);
+        float h = info.r;
+        float h_prev = info.g;
+
+        // Isotropic 9-point Laplacian stencil (cardinals + diagonals)
+        float nL = texture2D(u_current, v_uv - vec2(u_texel.x, 0.0)).r;
+        float nR = texture2D(u_current, v_uv + vec2(u_texel.x, 0.0)).r;
+        float nB = texture2D(u_current, v_uv - vec2(0.0, u_texel.y)).r;
+        float nT = texture2D(u_current, v_uv + vec2(0.0, u_texel.y)).r;
+
+        float nTL = texture2D(u_current, v_uv + vec2(-u_texel.x,  u_texel.y)).r;
+        float nTR = texture2D(u_current, v_uv + vec2( u_texel.x,  u_texel.y)).r;
+        float nBL = texture2D(u_current, v_uv + vec2(-u_texel.x, -u_texel.y)).r;
+        float nBR = texture2D(u_current, v_uv + vec2( u_texel.x, -u_texel.y)).r;
+
+        float sumNeighbors = (nL + nR + nB + nT) * 0.70710678 + (nTL + nTR + nBL + nBR) * 0.5;
+        float avg = sumNeighbors / (4.0 * 0.70710678 + 4.0 * 0.5);
+
+        // Discrete wave propagation with viscous damping
+        float newH = (2.0 * avg - h_prev) * u_damping;
+
+        // Absorbing boundary damping at edges
+        float edgeDist = min(min(v_uv.x, 1.0 - v_uv.x), min(v_uv.y, 1.0 - v_uv.y));
+        float edgeDecay = smoothstep(0.0, 0.035, edgeDist);
+        newH *= (0.93 + 0.07 * edgeDecay);
+
+        // 1. Cursor Wake Impulse (distance to continuous line segment connecting prev to curr mouse)
+        if (u_mouse_active > 0.5) {
+          vec2 pa = (v_uv - u_prev_cursor) * u_aspect_vec;
+          vec2 ba = (u_curr_cursor - u_prev_cursor) * u_aspect_vec;
+          float lenBaSq = dot(ba, ba);
+          float t = clamp(dot(pa, ba) / max(lenBaSq, 0.0000001), 0.0, 1.0);
+          float d = length(pa - ba * t);
+
+          float wake = exp(-d * d / (2.0 * u_mouse_radius * u_mouse_radius * 0.65));
+          newH += wake * u_mouse_strength;
+        }
+
+        // 2. Click / Tap Splash (crater depression + surrounding crown crest)
+        if (u_splash_active > 0.5) {
+          vec2 dP = (v_uv - u_splash_pos) * u_aspect_vec;
+          float r = length(dP);
+          float rNorm = r / max(u_splash_radius, 0.001);
+          float splashShape = (1.0 - rNorm * rNorm) * exp(-rNorm * rNorm * 0.85);
+          newH += splashShape * u_splash_strength;
+        }
+
+        // 3. Ambient Idle Drop
+        if (u_ambient_active > 0.5) {
+          vec2 dP = (v_uv - u_ambient_pos) * u_aspect_vec;
+          float r = length(dP);
+          float rNorm = r / max(u_ambient_radius, 0.001);
+          float dropShape = exp(-rNorm * rNorm * 1.5);
+          newH += dropShape * u_ambient_strength;
+        }
+
+        // Stability clamp
+        newH = clamp(newH, -2.5, 2.5);
+
+        // Store new height in R, current height in G
+        gl_FragColor = vec4(newH, h, 0.0, 1.0);
+      }
+    `;
+
+    // Optical Liquid Refraction, Simplex Noise Turbulence & Chromatic Shader
+    const FS_RENDER = `
+      precision highp float;
+      varying vec2 v_uv;
+
+      uniform sampler2D u_waterMap;
+      uniform sampler2D u_backgroundMap;
+      uniform vec2 u_texel;
+      uniform vec2 u_aspect_vec;
+      uniform vec2 u_cursor;
+      uniform float u_time;
+
+      uniform float u_refractionStrength;
+      uniform float u_chromaticAberration;
+      uniform float u_noiseStrength;
+      uniform float u_specularShininess;
+      uniform float u_specularStrength;
+      uniform float u_fresnelSheen;
+
+      // 2D Simplex Noise for organic fluid undulation (Awwwards reference)
+      vec3 permute(vec3 x) { return mod(((x * 34.0) + 1.0) * x, 289.0); }
+
+      float snoise(vec2 v) {
+        const vec4 C = vec4(
+          0.211324865405187,   // (3.0 - sqrt(3.0)) / 6.0
+          0.366025403784439,   // 0.5 * (sqrt(3.0) - 1.0)
+          -0.577350269189626,  // -1.0 + 2.0 * C.x
+          0.024390243902439    // 1.0 / 41.0
+        );
+        vec2 i  = floor(v + dot(v, C.yy));
+        vec2 x0 = v - i + dot(i, C.xx);
+        vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+        vec4 x12 = x0.xyxy + C.xxzz;
+        x12.xy -= i1;
+        i = mod(i, 289.0);
+        vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+        vec3 m = max(0.5 - vec3(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), 0.0);
+        m = m * m;
+        m = m * m;
+        vec3 x = 2.0 * fract(p * C.www) - 1.0;
+        vec3 h = abs(x) - 0.5;
+        vec3 ox = floor(x + 0.5);
+        vec3 a0 = x - ox;
+        m *= 1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h);
+        vec3 g;
+        g.x  = a0.x  * x0.x  + h.x  * x0.y;
+        g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+        return 130.0 * dot(m, g);
+      }
+
+      void main() {
+        // Spatial derivative normals from heightfield (central differences)
+        float hL = texture2D(u_waterMap, v_uv - vec2(u_texel.x, 0.0)).r;
+        float hR = texture2D(u_waterMap, v_uv + vec2(u_texel.x, 0.0)).r;
+        float hB = texture2D(u_waterMap, v_uv - vec2(0.0, u_texel.y)).r;
+        float hT = texture2D(u_waterMap, v_uv + vec2(0.0, u_texel.y)).r;
+        float currentHeight = texture2D(u_waterMap, v_uv).r;
+
+        float dx = (hR - hL) * 2.4;
+        float dy = (hT - hB) * 2.4;
+
+        // Organic fluid simplex noise modulation
+        float fluidNoise = snoise(v_uv * 7.5 + vec2(u_time * 0.08, u_time * 0.05));
+        float organicDisplacement = fluidNoise * (0.010 + abs(currentHeight) * 0.045) * u_noiseStrength;
+
+        // Combined liquid gradient vector
+        vec2 gradient = vec2(-dx * u_aspect_vec.x, -dy * u_aspect_vec.y);
+        gradient += vec2(
+          snoise(v_uv * 10.0 + vec2(u_time * 0.1, 0.0)),
+          snoise(v_uv * 10.0 + vec2(0.0, u_time * 0.1))
+        ) * abs(currentHeight) * 0.35 * u_noiseStrength;
+
+        vec3 normal = normalize(vec3(gradient, 0.050 / max(u_refractionStrength, 0.01)));
+
+        // Refraction displacement vector
+        vec2 refractOffset = -normal.xy * (0.055 * u_refractionStrength) + vec2(organicDisplacement);
+
+        // Chromatic Aberration: Wavelength-dependent UV offsets
+        vec2 offsetR = refractOffset * (1.0 - u_chromaticAberration * 1.5);
+        vec2 offsetG = refractOffset;
+        vec2 offsetB = refractOffset * (1.0 + u_chromaticAberration * 1.5);
+
+        vec2 uvR = clamp(v_uv + offsetR, 0.001, 0.999);
+        vec2 uvG = clamp(v_uv + offsetG, 0.001, 0.999);
+        vec2 uvB = clamp(v_uv + offsetB, 0.001, 0.999);
+
+        float r = texture2D(u_backgroundMap, uvR).r;
+        float g = texture2D(u_backgroundMap, uvG).g;
+        float b = texture2D(u_backgroundMap, uvB).b;
+        vec3 color = vec3(r, g, b);
+
+        // Lighting & Viscous Specular Highlights
+        vec3 viewDir = vec3(0.0, 0.0, 1.0);
+
+        // 1. Key directional light from upper-left
+        vec3 lightDir1 = normalize(vec3(-0.4, 0.65, 0.75));
+        vec3 half1 = normalize(lightDir1 + viewDir);
+        float spec1 = pow(max(dot(normal, half1), 0.0), u_specularShininess);
+
+        // 2. Cursor spotlight following the pointer
+        vec3 lightDir2 = normalize(vec3((u_cursor.x - 0.5) * u_aspect_vec.x * 1.5, (u_cursor.y - 0.5) * 1.5, 0.6));
+        vec3 half2 = normalize(lightDir2 + viewDir);
+        float spec2 = pow(max(dot(normal, half2), 0.0), u_specularShininess * 0.85);
+
+        float totalSpec = (spec1 * 0.75 + spec2 * 0.6) * u_specularStrength;
+
+        // Fresnel rim reflection at grazing refraction angles (liquid meniscus)
+        float NdotV = max(dot(normal, viewDir), 0.0);
+        float fresnel = pow(1.0 - NdotV, 3.5) * u_fresnelSheen;
+
+        // Liquid gloss & caustic luminance
+        vec3 specularColor = vec3(1.0, 1.0, 1.0) * totalSpec;
+        vec3 sheenColor = vec3(0.65, 0.82, 1.0) * fresnel;
+        float caustic = max(0.0, currentHeight) * 0.16;
+
+        color += specularColor + sheenColor + vec3(caustic);
+
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `;
+
+    // =========================================================================
+    // PROCEDURAL HIGH-RESOLUTION DEFAULT BACKGROUND TEXTURE
+    // =========================================================================
+    function createDefaultStudioTexture(gl) {
+      const texCanvas = document.createElement("canvas");
+      const size = 2048;
+      texCanvas.width = size;
+      texCanvas.height = size;
+      const ctx = texCanvas.getContext("2d");
+
+      // 1. Deep Obsidian Base
+      ctx.fillStyle = "#07080a";
+      ctx.fillRect(0, 0, size, size);
+
+      // 2. Atmospheric Indigo & Violet Radial Clouds
+      const g1 = ctx.createRadialGradient(size * 0.35, size * 0.45, 80, size * 0.35, size * 0.45, size * 0.65);
+      g1.addColorStop(0, "rgba(79, 70, 229, 0.38)");
+      g1.addColorStop(0.45, "rgba(132, 125, 255, 0.18)");
+      g1.addColorStop(0.85, "rgba(15, 23, 42, 0.05)");
+      g1.addColorStop(1, "rgba(7, 8, 10, 0)");
+      ctx.fillStyle = g1;
+      ctx.fillRect(0, 0, size, size);
+
+      const g2 = ctx.createRadialGradient(size * 0.7, size * 0.55, 60, size * 0.7, size * 0.55, size * 0.6);
+      g2.addColorStop(0, "rgba(56, 189, 248, 0.28)");
+      g2.addColorStop(0.4, "rgba(159, 232, 112, 0.12)");
+      g2.addColorStop(0.8, "rgba(15, 23, 42, 0.04)");
+      g2.addColorStop(1, "rgba(7, 8, 10, 0)");
+      ctx.fillStyle = g2;
+      ctx.fillRect(0, 0, size, size);
+
+      // 3. Subtle Concentric Rings & Lens Grid (Curves bend dramatically under refraction)
+      ctx.save();
+      ctx.lineWidth = 1.5;
+      for (let r = 160; r < size * 0.9; r += 140) {
+        ctx.beginPath();
+        ctx.arc(size * 0.5, size * 0.5, r, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.035)";
+        ctx.stroke();
+      }
+
+      // Diagonal luxury mesh rays
+      for (let i = 0; i < size; i += 180) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(size, size - i);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.02)";
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 4. Center Typography Monogram Watermark (Refracts like liquid glass)
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "600 130px -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif";
+      ctx.fillStyle = "rgba(255, 255, 255, 0.09)";
+      ctx.letterSpacing = "14px";
+      ctx.fillText("LEDGER", size * 0.5, size * 0.47);
+
+      ctx.font = "italic 400 48px 'Playfair Display', Georgia, serif";
+      ctx.fillStyle = "rgba(132, 125, 255, 0.22)";
+      ctx.fillText("calm wealth in liquid motion", size * 0.5, size * 0.54);
+      ctx.restore();
+
+      // 5. Studio Vignette Edge Darkening
+      const vignette = ctx.createRadialGradient(size * 0.5, size * 0.5, size * 0.35, size * 0.5, size * 0.5, size * 0.72);
+      vignette.addColorStop(0, "rgba(0, 0, 0, 0)");
+      vignette.addColorStop(0.7, "rgba(7, 8, 10, 0.45)");
+      vignette.addColorStop(1, "rgba(7, 8, 10, 0.96)");
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, size, size);
+
+      // Create WebGL Texture
+      const texture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texCanvas);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+      return texture;
+    }
+
+    // =========================================================================
+    // WEBGL HELPER FUNCTIONS
+    // =========================================================================
+    function createShader(gl, type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error("Shader compile error:", gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+      }
+      return shader;
+    }
+
+    function createProgram(gl, vsSource, fsSource) {
+      const vs = createShader(gl, gl.VERTEX_SHADER, vsSource);
+      const fs = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
+      if (!vs || !fs) return null;
+
+      const program = gl.createProgram();
+      gl.attachShader(program, vs);
+      gl.attachShader(program, fs);
+      gl.linkProgram(program);
+
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.error("Program link error:", gl.getProgramInfoLog(program));
+        gl.deleteProgram(program);
+        return null;
+      }
+      return program;
+    }
+
+    function createFBO(gl, size, isWebGL2, hasFloatExt) {
+      const texture = gl.createTexture();
+      const fbo = gl.createFramebuffer();
+      if (!texture || !fbo) return null;
+
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+
+      let internalFormat = gl.RGBA;
+      let format = gl.RGBA;
+      let type = gl.UNSIGNED_BYTE;
+
+      if (isWebGL2 && hasFloatExt) {
+        internalFormat = gl.RGBA16F;
+        format = gl.RGBA;
+        type = gl.HALF_FLOAT;
+      } else if (!isWebGL2 && hasFloatExt) {
+        const extHalf = gl.getExtension("OES_texture_half_float");
+        if (extHalf) type = extHalf.HALF_FLOAT_OES;
+      }
+
+      gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, size, size, 0, format, type, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+
+      const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+      if (status !== gl.FRAMEBUFFER_COMPLETE) {
+        // Fallback to unsigned byte if float FBO is unsupported
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      }
+
+      gl.bindTexture(gl.TEXTURE_2D, null);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+      return { fbo, texture };
+    }
+
+    // =========================================================================
+    // MAIN APPLICATION
+    // =========================================================================
+    function init() {
+      const canvas = document.getElementById("liquid-canvas");
+      if (!canvas) return;
+
+      // 1. Acquire WebGL Context
+      let gl = canvas.getContext("webgl2", {
+        alpha: false,
+        depth: false,
+        stencil: false,
+        antialias: false,
+        powerPreference: "high-performance",
+      });
+      const isWebGL2 = Boolean(gl);
+
+      if (!gl) {
+        gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+      }
+
+      if (!gl) {
+        console.error("WebGL is not supported in this browser.");
+        return;
+      }
+
+      // Check float texture extensions
+      let hasFloat = false;
+      if (isWebGL2) {
+        hasFloat = Boolean(gl.getExtension("EXT_color_buffer_float"));
+      } else {
+        hasFloat = Boolean(
+          gl.getExtension("OES_texture_half_float") &&
+          gl.getExtension("OES_texture_half_float_linear")
+        );
+      }
+
+      // 2. Build Programs
+      const simProgram = createProgram(gl, VS_QUAD, FS_SIMULATION);
+      const renderProgram = createProgram(gl, VS_QUAD, FS_RENDER);
+      if (!simProgram || !renderProgram) return;
+
+      // Uniform Locations
+      const simUniforms = {
+        u_current: gl.getUniformLocation(simProgram, "u_current"),
+        u_texel: gl.getUniformLocation(simProgram, "u_texel"),
+        u_aspect_vec: gl.getUniformLocation(simProgram, "u_aspect_vec"),
+        u_damping: gl.getUniformLocation(simProgram, "u_damping"),
+        u_mouse_active: gl.getUniformLocation(simProgram, "u_mouse_active"),
+        u_prev_cursor: gl.getUniformLocation(simProgram, "u_prev_cursor"),
+        u_curr_cursor: gl.getUniformLocation(simProgram, "u_curr_cursor"),
+        u_mouse_radius: gl.getUniformLocation(simProgram, "u_mouse_radius"),
+        u_mouse_strength: gl.getUniformLocation(simProgram, "u_mouse_strength"),
+        u_splash_active: gl.getUniformLocation(simProgram, "u_splash_active"),
+        u_splash_pos: gl.getUniformLocation(simProgram, "u_splash_pos"),
+        u_splash_radius: gl.getUniformLocation(simProgram, "u_splash_radius"),
+        u_splash_strength: gl.getUniformLocation(simProgram, "u_splash_strength"),
+        u_ambient_active: gl.getUniformLocation(simProgram, "u_ambient_active"),
+        u_ambient_pos: gl.getUniformLocation(simProgram, "u_ambient_pos"),
+        u_ambient_radius: gl.getUniformLocation(simProgram, "u_ambient_radius"),
+        u_ambient_strength: gl.getUniformLocation(simProgram, "u_ambient_strength"),
+      };
+
+      const renderUniforms = {
+        u_waterMap: gl.getUniformLocation(renderProgram, "u_waterMap"),
+        u_backgroundMap: gl.getUniformLocation(renderProgram, "u_backgroundMap"),
+        u_texel: gl.getUniformLocation(renderProgram, "u_texel"),
+        u_aspect_vec: gl.getUniformLocation(renderProgram, "u_aspect_vec"),
+        u_cursor: gl.getUniformLocation(renderProgram, "u_cursor"),
+        u_time: gl.getUniformLocation(renderProgram, "u_time"),
+        u_refractionStrength: gl.getUniformLocation(renderProgram, "u_refractionStrength"),
+        u_chromaticAberration: gl.getUniformLocation(renderProgram, "u_chromaticAberration"),
+        u_noiseStrength: gl.getUniformLocation(renderProgram, "u_noiseStrength"),
+        u_specularShininess: gl.getUniformLocation(renderProgram, "u_specularShininess"),
+        u_specularStrength: gl.getUniformLocation(renderProgram, "u_specularStrength"),
+        u_fresnelSheen: gl.getUniformLocation(renderProgram, "u_fresnelSheen"),
+      };
+
+      // 3. Setup Fullscreen Geometry
+      const quadVbo = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, quadVbo);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([
+          -1.0, -1.0,
+           1.0, -1.0,
+          -1.0,  1.0,
+          -1.0,  1.0,
+           1.0, -1.0,
+           1.0,  1.0,
+        ]),
+        gl.STATIC_DRAW
+      );
+
+      // 4. Setup Ping-Pong FBOs
+      const simRes = CONFIG.simResolution;
+      let fboA = createFBO(gl, simRes, isWebGL2, hasFloat);
+      let fboB = createFBO(gl, simRes, isWebGL2, hasFloat);
+      if (!fboA || !fboB) {
+        console.error("Failed to allocate Ping-Pong FBOs");
+        return;
+      }
+
+      // Clear FBOs initially
+      [fboA, fboB].forEach((f) => {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, f.fbo);
+        gl.viewport(0, 0, simRes, simRes);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_COLOR_BUFFER_BIT);
+      });
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+      // 5. Setup Background Texture (Procedural + URL Override)
+      let bgTexture = createDefaultStudioTexture(gl);
+
+      if (CONFIG.backgroundImageUrl && CONFIG.backgroundImageUrl.trim() !== "") {
+        const userImg = new Image();
+        userImg.crossOrigin = "anonymous";
+        userImg.onload = () => {
+          const userTex = gl.createTexture();
+          gl.bindTexture(gl.TEXTURE_2D, userTex);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, userImg);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          bgTexture = userTex;
+        };
+        userImg.onerror = () => {
+          console.warn("Could not load user image, using default studio background.");
+        };
+        userImg.src = CONFIG.backgroundImageUrl;
+      }
+
+      // 6. Viewport Resize Handling
+      let aspectX = 1.0;
+      let aspectY = 1.0;
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(window.innerWidth * dpr);
+        canvas.height = Math.round(window.innerHeight * dpr);
+
+        const aspect = canvas.width / canvas.height;
+        if (aspect >= 1.0) {
+          aspectX = aspect;
+          aspectY = 1.0;
+        } else {
+          aspectX = 1.0;
+          aspectY = 1.0 / aspect;
+        }
+      }
+
+      window.addEventListener("resize", resize, { passive: true });
+      resize();
+
+      // 7. Cursor Tracking with Continuous Interpolation (Lerp)
+      const mouse = {
+        current: { x: 0.5, y: 0.5 },
+        target: { x: 0.5, y: 0.5 },
+        prev: { x: 0.5, y: 0.5 },
+        speed: 0,
+        active: false,
+        isMoving: false,
+      };
+
+      const splash = {
+        active: false,
+        x: 0.5,
+        y: 0.5,
+        strength: 0,
+        radius: 0,
+      };
+
+      let lastAmbientDrop = performance.now();
+      const startTime = performance.now();
+
+      function updatePointer(clientX, clientY) {
+        const x = clientX / window.innerWidth;
+        const y = 1.0 - (clientY / window.innerHeight); // WebGL Y is inverted
+
+        if (!mouse.active) {
+          mouse.current.x = x;
+          mouse.current.y = y;
+          mouse.prev.x = x;
+          mouse.prev.y = y;
+          mouse.target.x = x;
+          mouse.target.y = y;
+          mouse.active = true;
+        } else {
+          mouse.target.x = x;
+          mouse.target.y = y;
+        }
+      }
+
+      function triggerSplash(clientX, clientY) {
+        const x = clientX / window.innerWidth;
+        const y = 1.0 - (clientY / window.innerHeight);
+
+        splash.active = true;
+        splash.x = x;
+        splash.y = y;
+        splash.strength = CONFIG.clickSplashStrength;
+        splash.radius = CONFIG.clickSplashRadius;
+
+        // Ensure mouse tracking starts immediately at splash
+        mouse.target.x = x;
+        mouse.target.y = y;
+        mouse.current.x = x;
+        mouse.current.y = y;
+        mouse.prev.x = x;
+        mouse.prev.y = y;
+        mouse.active = true;
+      }
+
+      window.addEventListener("pointermove", (e) => {
+        updatePointer(e.clientX, e.clientY);
+      }, { passive: true });
+
+      window.addEventListener("pointerdown", (e) => {
+        triggerSplash(e.clientX, e.clientY);
+      }, { passive: true });
+
+      window.addEventListener("touchmove", (e) => {
+        if (e.touches.length > 0 && e.touches[0]) {
+          updatePointer(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }, { passive: true });
+
+      window.addEventListener("touchstart", (e) => {
+        if (e.touches.length > 0 && e.touches[0]) {
+          triggerSplash(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }, { passive: true });
+
+      window.addEventListener("pointerleave", () => {
+        mouse.active = false;
+        mouse.speed = 0;
+      });
+
+      // 8. Animation & Simulation Frame Loop
+      function render(now) {
+        requestAnimationFrame(render);
+
+        const elapsedTime = (now - startTime) * 0.001;
+
+        // Continuous Cursor Lerp & Speed calculation
+        if (mouse.active) {
+          mouse.prev.x = mouse.current.x;
+          mouse.prev.y = mouse.current.y;
+
+          mouse.current.x += (mouse.target.x - mouse.current.x) * CONFIG.cursorLerp;
+          mouse.current.y += (mouse.target.y - mouse.current.y) * CONFIG.cursorLerp;
+
+          const dx = (mouse.current.x - mouse.prev.x) * aspectX;
+          const dy = (mouse.current.y - mouse.prev.y) * aspectY;
+          mouse.speed = Math.hypot(dx, dy);
+          mouse.isMoving = mouse.speed > 0.0006;
+        } else {
+          mouse.isMoving = false;
+          mouse.speed = 0;
+        }
+
+        // Ambient idle drop
+        let ambientActive = false;
+        let ambientX = 0.5;
+        let ambientY = 0.5;
+
+        if (CONFIG.ambientDrops && (now - lastAmbientDrop > CONFIG.ambientDropInterval)) {
+          lastAmbientDrop = now;
+          ambientActive = true;
+          ambientX = 0.15 + Math.random() * 0.7;
+          ambientY = 0.15 + Math.random() * 0.7;
+        }
+
+        // =====================================================================
+        // PASS 1: 2D Wave Equation Heightfield Simulation (FBO Ping-Pong)
+        // =====================================================================
+        gl.useProgram(simProgram);
+
+        // Bind source FBO A texture to slot 0
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, fboA.texture);
+        gl.uniform1i(simUniforms.u_current, 0);
+
+        gl.uniform2f(simUniforms.u_texel, 1.0 / simRes, 1.0 / simRes);
+        gl.uniform2f(simUniforms.u_aspect_vec, aspectX, aspectY);
+        gl.uniform1f(simUniforms.u_damping, CONFIG.damping);
+
+        // Mouse wake injection
+        gl.uniform1f(simUniforms.u_mouse_active, mouse.isMoving ? 1.0 : 0.0);
+        gl.uniform2f(simUniforms.u_prev_cursor, mouse.prev.x, mouse.prev.y);
+        gl.uniform2f(simUniforms.u_curr_cursor, mouse.current.x, mouse.current.y);
+        gl.uniform1f(simUniforms.u_mouse_radius, CONFIG.rippleRadius);
+        gl.uniform1f(simUniforms.u_mouse_strength, Math.min(0.75, CONFIG.mouseWakeStrength * (0.3 + mouse.speed * 8.0)));
+
+        // Click splash injection
+        gl.uniform1f(simUniforms.u_splash_active, splash.active ? 1.0 : 0.0);
+        gl.uniform2f(simUniforms.u_splash_pos, splash.x, splash.y);
+        gl.uniform1f(simUniforms.u_splash_radius, splash.radius);
+        gl.uniform1f(simUniforms.u_splash_strength, splash.strength);
+        splash.active = false; // Consumed
+
+        // Ambient drop injection
+        gl.uniform1f(simUniforms.u_ambient_active, ambientActive ? 1.0 : 0.0);
+        gl.uniform2f(simUniforms.u_ambient_pos, ambientX, ambientY);
+        gl.uniform1f(simUniforms.u_ambient_radius, 0.028);
+        gl.uniform1f(simUniforms.u_ambient_strength, CONFIG.ambientDropStrength);
+
+        // Render simulation step into FBO B
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fboB.fbo);
+        gl.viewport(0, 0, simRes, simRes);
+
+        const posAttrSim = gl.getAttribLocation(simProgram, "a_position");
+        gl.enableVertexAttribArray(posAttrSim);
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadVbo);
+        gl.vertexAttribPointer(posAttrSim, 2, gl.FLOAT, false, 0, 0);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        // Ping-Pong swap: FBO B now contains the latest simulation state
+        const temp = fboA;
+        fboA = fboB;
+        fboB = temp;
+
+        // =====================================================================
+        // PASS 2: Liquid Refraction & Chromatic Render Pass (Draw to Screen)
+        // =====================================================================
+        gl.useProgram(renderProgram);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, canvas.width, canvas.height);
+
+        // Texture Unit 0: Water Heightfield (from FBO A)
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, fboA.texture);
+        gl.uniform1i(renderUniforms.u_waterMap, 0);
+
+        // Texture Unit 1: Background Image
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, bgTexture);
+        gl.uniform1i(renderUniforms.u_backgroundMap, 1);
+
+        gl.uniform2f(renderUniforms.u_texel, 1.0 / simRes, 1.0 / simRes);
+        gl.uniform2f(renderUniforms.u_aspect_vec, aspectX, aspectY);
+        gl.uniform2f(renderUniforms.u_cursor, mouse.current.x, mouse.current.y);
+        gl.uniform1f(renderUniforms.u_time, elapsedTime);
+
+        gl.uniform1f(renderUniforms.u_refractionStrength, CONFIG.refractionStrength);
+        gl.uniform1f(renderUniforms.u_chromaticAberration, CONFIG.chromaticAberration);
+        gl.uniform1f(renderUniforms.u_noiseStrength, CONFIG.noiseStrength);
+        gl.uniform1f(renderUniforms.u_specularShininess, CONFIG.specularShininess);
+        gl.uniform1f(renderUniforms.u_specularStrength, CONFIG.specularStrength);
+        gl.uniform1f(renderUniforms.u_fresnelSheen, CONFIG.fresnelSheen);
+
+        const posAttrRender = gl.getAttribLocation(renderProgram, "a_position");
+        gl.enableVertexAttribArray(posAttrRender);
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadVbo);
+        gl.vertexAttribPointer(posAttrRender, 2, gl.FLOAT, false, 0, 0);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    window.addEventListener("DOMContentLoaded", init);
+  </script>
+</body>
+</html>
