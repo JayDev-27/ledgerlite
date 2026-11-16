@@ -710,11 +710,11 @@ export const LandingPage: React.FC = () => {
         </section>
 
         {/* ── Final CTA ───────────────────────────────────────────────────── */}
-        <section aria-labelledby="cta-title" className="relative overflow-hidden px-5 md:px-8 pt-24 pb-32 md:pt-32 md:pb-44 text-center">
+        <section aria-labelledby="cta-title" className="relative overflow-hidden bg-[#07080a] px-5 md:px-8 pt-24 pb-32 md:pt-32 md:pb-44 text-center">
           {/* Interactive water ripple & glowing aura background */}
           <WaterGlowBackground />
           <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent pointer-events-none" />
-          <div className="relative pointer-events-none">
+          <div className="relative pointer-events-none z-10">
             <p className="reveal label-mono text-white/40 mb-8">Begin</p>
             <h2
               id="cta-title"

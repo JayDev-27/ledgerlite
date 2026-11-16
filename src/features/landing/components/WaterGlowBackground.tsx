@@ -2,9 +2,9 @@ import React, { useEffect, useRef } from 'react';
 
 export interface WaterGlowBackgroundProps {
   className?: string;
-  /** Custom damping factor: 0.98 (calm water) to 0.995 (longer ripples). Default: 0.988 */
+  /** Custom damping factor: 0.975 (calm/viscous) to 0.990 (longer ripples). Default: 0.984 */
   damping?: number;
-  /** Ambient gentle raindrops when idle. Default: true */
+  /** Ambient gentle raindrops when idle. Default: false (strictly cursor-driven) */
   ambientRain?: boolean;
 }
 
@@ -25,241 +25,207 @@ void main() {
 }
 `;
 
-// Heightfield Wave Equation Simulation Fragment Shader
+// 2D Wave-Equation Heightfield Simulation (Ping-Pong FBO)
 const FS_SIMULATION = `
 precision highp float;
+varying vec2 v_uv;
 
 uniform sampler2D u_current;
 uniform vec2 u_texel;
-uniform vec2 u_aspect;
+uniform vec2 u_aspect_vec;
 uniform float u_damping;
 
-// Mouse wake interaction
+// Mouse continuous wake
 uniform float u_mouse_active;
-uniform vec2 u_mouse_pos;
-uniform vec2 u_mouse_prev;
+uniform vec2 u_prev_cursor;
+uniform vec2 u_curr_cursor;
 uniform float u_mouse_radius;
 uniform float u_mouse_strength;
 
-// Click splash interaction
-uniform float u_click_active;
-uniform vec2 u_click_pos;
-uniform float u_click_radius;
-uniform float u_click_strength;
+// Click / tap splash
+uniform float u_splash_active;
+uniform vec2 u_splash_pos;
+uniform float u_splash_radius;
+uniform float u_splash_strength;
 
-// Scroll wave perturbation
-uniform float u_scroll_active;
-uniform float u_scroll_y;
-uniform float u_scroll_strength;
-uniform float u_scroll_phase;
-
-// Ambient gentle raindrop
-uniform float u_drop_active;
-uniform vec2 u_drop_pos;
-uniform float u_drop_radius;
-uniform float u_drop_strength;
-
-varying vec2 v_uv;
+// Ambient raindrop
+uniform float u_ambient_active;
+uniform vec2 u_ambient_pos;
+uniform float u_ambient_radius;
+uniform float u_ambient_strength;
 
 void main() {
   vec4 info = texture2D(u_current, v_uv);
   float h = info.r;
   float h_prev = info.g;
 
-  // Cardinal neighbors
-  float hL = texture2D(u_current, v_uv - vec2(u_texel.x, 0.0)).r;
-  float hR = texture2D(u_current, v_uv + vec2(u_texel.x, 0.0)).r;
-  float hB = texture2D(u_current, v_uv - vec2(0.0, u_texel.y)).r;
-  float hT = texture2D(u_current, v_uv + vec2(0.0, u_texel.y)).r;
+  // Isotropic 9-point Laplacian stencil (cardinals + diagonals)
+  float nL = texture2D(u_current, v_uv - vec2(u_texel.x, 0.0)).r;
+  float nR = texture2D(u_current, v_uv + vec2(u_texel.x, 0.0)).r;
+  float nB = texture2D(u_current, v_uv - vec2(0.0, u_texel.y)).r;
+  float nT = texture2D(u_current, v_uv + vec2(0.0, u_texel.y)).r;
 
-  // Diagonal neighbors (isotropy)
-  float hBL = texture2D(u_current, v_uv + vec2(-u_texel.x, -u_texel.y)).r;
-  float hBR = texture2D(u_current, v_uv + vec2( u_texel.x, -u_texel.y)).r;
-  float hTL = texture2D(u_current, v_uv + vec2(-u_texel.x,  u_texel.y)).r;
-  float hTR = texture2D(u_current, v_uv + vec2( u_texel.x,  u_texel.y)).r;
+  float nTL = texture2D(u_current, v_uv + vec2(-u_texel.x,  u_texel.y)).r;
+  float nTR = texture2D(u_current, v_uv + vec2( u_texel.x,  u_texel.y)).r;
+  float nBL = texture2D(u_current, v_uv + vec2(-u_texel.x, -u_texel.y)).r;
+  float nBR = texture2D(u_current, v_uv + vec2( u_texel.x, -u_texel.y)).r;
 
-  // Discrete 2D wave equation with isotropic 9-point Laplacian averaging:
-  float cardinals = hL + hR + hB + hT;
-  float diagonals = hBL + hBR + hTL + hTR;
-  float average = (cardinals * 0.65 + diagonals * 0.35) * 0.5;
+  float sumNeighbors = (nL + nR + nB + nT) * 0.70710678 + (nTL + nTR + nBL + nBR) * 0.5;
+  float avg = sumNeighbors / (4.0 * 0.70710678 + 4.0 * 0.5);
 
-  float h_next = (average - h_prev) * u_damping;
+  // Discrete wave propagation with viscous damping
+  float newH = (2.0 * avg - h_prev) * u_damping;
 
-  // Gentle absorbing boundary at edges to prevent harsh reflective artifacts
-  vec2 edgeDist = min(v_uv, 1.0 - v_uv);
-  float borderDamp = smoothstep(0.0, 0.035, min(edgeDist.x, edgeDist.y));
-  h_next *= borderDamp;
+  // Absorbing boundary damping at edges
+  float edgeDist = min(min(v_uv.x, 1.0 - v_uv.x), min(v_uv.y, 1.0 - v_uv.y));
+  float edgeDecay = smoothstep(0.0, 0.04, edgeDist);
+  newH *= (0.92 + 0.08 * edgeDecay);
 
-  // 1. Mouse drag wake disturbance along movement segment
+  // 1. Cursor Wake Impulse (distance to continuous line segment connecting prev to curr mouse)
   if (u_mouse_active > 0.5) {
-    vec2 pa = (v_uv - u_mouse_prev) * u_aspect;
-    vec2 ba = (u_mouse_pos - u_mouse_prev) * u_aspect;
-    float lenBaSq = max(dot(ba, ba), 0.000001);
-    float t = clamp(dot(pa, ba) / lenBaSq, 0.0, 1.0);
-    float dist = length(pa - ba * t);
-    float r = u_mouse_radius;
-    if (dist < r * 2.5) {
-      float w = exp(-dist * dist / (2.0 * r * r));
-      h_next += u_mouse_strength * w;
-    }
+    vec2 pa = (v_uv - u_prev_cursor) * u_aspect_vec;
+    vec2 ba = (u_curr_cursor - u_prev_cursor) * u_aspect_vec;
+    float lenBaSq = dot(ba, ba);
+    float t = clamp(dot(pa, ba) / max(lenBaSq, 0.0000001), 0.0, 1.0);
+    float d = length(pa - ba * t);
+
+    float wake = exp(-d * d / (2.0 * u_mouse_radius * u_mouse_radius * 0.65));
+    newH += wake * u_mouse_strength;
   }
 
-  // 2. Click splash (hydrodynamic droplet crater + splash crown crest)
-  if (u_click_active > 0.5) {
-    vec2 diff = (v_uv - u_click_pos) * u_aspect;
-    float dist = length(diff);
-    float r = u_click_radius;
-    if (dist < r * 3.5) {
-      float crater = -exp(-dist * dist / (r * r * 0.35)) * 0.75;
-      float crown = exp(-pow(dist - r * 1.1, 2.0) / (r * r * 0.22)) * 0.95;
-      h_next += u_click_strength * (crater + crown);
-    }
+  // 2. Click / Tap Splash (crater depression + surrounding crown crest)
+  if (u_splash_active > 0.5) {
+    vec2 dP = (v_uv - u_splash_pos) * u_aspect_vec;
+    float r = length(dP);
+    float rNorm = r / max(u_splash_radius, 0.001);
+    float splashShape = (1.0 - rNorm * rNorm) * exp(-rNorm * rNorm * 0.85);
+    newH += splashShape * u_splash_strength;
   }
 
-  // 3. Scroll vertical fluid wave perturbation
-  if (u_scroll_active > 0.5) {
-    float dy = abs(v_uv.y - u_scroll_y);
-    if (dy < 0.22) {
-      float waveProfile = exp(-dy * dy / 0.008) * sin(v_uv.x * 20.0 + u_scroll_phase);
-      h_next += u_scroll_strength * waveProfile;
-    }
+  // 3. Ambient Idle Drop
+  if (u_ambient_active > 0.5) {
+    vec2 dP = (v_uv - u_ambient_pos) * u_aspect_vec;
+    float r = length(dP);
+    float rNorm = r / max(u_ambient_radius, 0.001);
+    float dropShape = exp(-rNorm * rNorm * 1.5);
+    newH += dropShape * u_ambient_strength;
   }
 
-  // 4. Ambient gentle raindrop
-  if (u_drop_active > 0.5) {
-    vec2 diff = (v_uv - u_drop_pos) * u_aspect;
-    float dist = length(diff);
-    float r = u_drop_radius;
-    if (dist < r * 3.0) {
-      float drop = sin(dist / r * 3.14159) * exp(-dist / (r * 1.15));
-      h_next += u_drop_strength * drop;
-    }
-  }
+  // Stability clamp
+  newH = clamp(newH, -2.5, 2.5);
 
-  // Prevent numerical divergence
-  h_next = clamp(h_next, -2.5, 2.5);
-
-  gl_FragColor = vec4(h_next, h, 0.0, 1.0);
+  // Store new height in R, current height in G
+  gl_FragColor = vec4(newH, h, 0.0, 1.0);
 }
 `;
 
-// Optical Liquid Rendering Fragment Shader (Refraction, Caustics, Iridescence, Specular)
+// Optical Liquid Refraction & Deep Obsidian Studio Shading
 const FS_RENDER = `
 precision highp float;
-
-uniform sampler2D u_heights;
-uniform vec2 u_texel;
-uniform vec2 u_aspect;
-uniform vec2 u_resolution;
-uniform float u_time;
-uniform vec2 u_mouse_glow;
-uniform float u_mouse_hover;
-uniform float u_normal_scale;
-
 varying vec2 v_uv;
 
-// Procedural deep water background evaluation with chromatic dispersion
+uniform sampler2D u_waterMap;
+uniform vec2 u_texel;
+uniform vec2 u_aspect_vec;
+uniform vec2 u_cursor;
+uniform float u_time;
+uniform float u_mouse_hover;
+
+uniform float u_refractionStrength;
+uniform float u_chromaticAberration;
+uniform float u_specularShininess;
+uniform float u_specularStrength;
+uniform float u_fresnelSheen;
+
+// Calm luxury studio background evaluation
 vec3 evalBackground(vec2 uv) {
-  // Base dark background (#0B0C0D)
-  vec3 col = vec3(0.043, 0.047, 0.051);
+  // Deep dark obsidian base (#07080a)
+  vec3 col = vec3(0.027, 0.031, 0.039);
 
-  // Undulating deep water caustic orb 1 — Violet Iris (#847DFF)
-  vec2 orb1 = vec2(0.5 + sin(u_time * 0.22) * 0.16, 0.55 + cos(u_time * 0.18) * 0.14);
-  float d1 = length((uv - orb1) * u_aspect);
-  float g1 = exp(-d1 * d1 / 0.16);
-  col += vec3(0.518, 0.490, 1.0) * (g1 * 0.24);
+  // Soft atmospheric indigo & cyan ambient clouds
+  vec2 orb1 = vec2(0.40 + sin(u_time * 0.15) * 0.08, 0.50 + cos(u_time * 0.12) * 0.08);
+  float d1 = length((uv - orb1) * u_aspect_vec);
+  float g1 = exp(-d1 * d1 / 0.18);
+  col += vec3(0.31, 0.27, 0.90) * (g1 * 0.18); // Indigo #4f46e5
 
-  // Undulating caustic orb 2 — Electric Cyan (#38bdf8) & Lime Voltage (#9FE870)
-  vec2 orb2 = vec2(0.62 + cos(u_time * 0.26) * 0.15, 0.6 + sin(u_time * 0.2) * 0.12);
-  float d2 = length((uv - orb2) * u_aspect);
-  float g2 = exp(-d2 * d2 / 0.12);
-  col += vec3(0.220, 0.741, 0.973) * (g2 * 0.14);
-  col += vec3(0.624, 0.910, 0.439) * (g2 * 0.05);
+  vec2 orb2 = vec2(0.68 + cos(u_time * 0.18) * 0.07, 0.55 + sin(u_time * 0.14) * 0.07);
+  float d2 = length((uv - orb2) * u_aspect_vec);
+  float g2 = exp(-d2 * d2 / 0.14);
+  col += vec3(0.22, 0.74, 0.97) * (g2 * 0.12); // Cyan #38bdf8
 
-  // Cursor glowing spotlight (follows pointer with smooth inertia)
+  // Dynamic cursor spotlight (glow follows mouse smoothly)
   if (u_mouse_hover > 0.01) {
-    float dMouse = length((uv - u_mouse_glow) * u_aspect);
-    float gMouse = exp(-dMouse * dMouse / 0.11) * u_mouse_hover;
-    col += vec3(0.518, 0.490, 1.0) * (gMouse * 0.32);
-    col += vec3(0.220, 0.741, 0.973) * (gMouse * 0.18);
-    col += vec3(0.624, 0.910, 0.439) * (gMouse * 0.06);
+    float dMouse = length((uv - u_cursor) * u_aspect_vec);
+    float gMouse = exp(-dMouse * dMouse / 0.09) * u_mouse_hover;
+    col += vec3(0.52, 0.49, 1.0) * (gMouse * 0.22);
+    col += vec3(0.22, 0.74, 0.97) * (gMouse * 0.10);
   }
 
-  // Radial vignette
-  float vig = 1.0 - smoothstep(0.4, 1.3, length((uv - 0.5) * u_aspect));
-  col *= (0.75 + 0.25 * vig);
+  // Soft vignette
+  float vig = 1.0 - smoothstep(0.35, 1.15, length((uv - 0.5) * u_aspect_vec));
+  col *= (0.72 + 0.28 * vig);
 
   return col;
 }
 
 void main() {
-  float h = texture2D(u_heights, v_uv).r;
-  float hL = texture2D(u_heights, v_uv - vec2(u_texel.x, 0.0)).r;
-  float hR = texture2D(u_heights, v_uv + vec2(u_texel.x, 0.0)).r;
-  float hB = texture2D(u_heights, v_uv - vec2(0.0, u_texel.y)).r;
-  float hT = texture2D(u_heights, v_uv + vec2(0.0, u_texel.y)).r;
+  // Spatial derivative normals (central differences)
+  float hL = texture2D(u_waterMap, v_uv - vec2(u_texel.x, 0.0)).r;
+  float hR = texture2D(u_waterMap, v_uv + vec2(u_texel.x, 0.0)).r;
+  float hB = texture2D(u_waterMap, v_uv - vec2(0.0, u_texel.y)).r;
+  float hT = texture2D(u_waterMap, v_uv + vec2(0.0, u_texel.y)).r;
+  float currentHeight = texture2D(u_waterMap, v_uv).r;
 
-  // Surface gradient & normal vector with aspect ratio correction
-  vec2 grad = vec2(hR - hL, (hT - hB) * (u_aspect.y / u_aspect.x)) * u_normal_scale;
-  vec3 normal = normalize(vec3(-grad.x, -grad.y, 1.0));
+  float dx = (hR - hL) * 2.2;
+  float dy = (hT - hB) * 2.2;
 
-  // 1. Optical Refraction & Prismatic Chromatic Dispersion
-  vec2 refractOffset = normal.xy * 0.038;
-  vec2 uvR = v_uv + refractOffset * 1.07;
-  vec2 uvG = v_uv + refractOffset * 1.00;
-  vec2 uvB = v_uv + refractOffset * 0.93;
+  // Surface gradient with aspect ratio correction
+  vec2 gradient = vec2(-dx * u_aspect_vec.x, -dy * u_aspect_vec.y);
+  vec3 normal = normalize(vec3(gradient, 0.052 / max(u_refractionStrength, 0.01)));
 
-  float rChannel = evalBackground(uvR).r;
-  float gChannel = evalBackground(uvG).g;
-  float bChannel = evalBackground(uvB).b;
-  vec3 waterColor = vec3(rChannel, gChannel, bChannel);
+  // Refraction displacement with subtle chromatic dispersion
+  vec2 refractOffset = -normal.xy * (0.045 * u_refractionStrength);
+  vec2 uvR = clamp(v_uv + refractOffset * (1.0 - u_chromaticAberration), 0.001, 0.999);
+  vec2 uvG = clamp(v_uv + refractOffset, 0.001, 0.999);
+  vec2 uvB = clamp(v_uv + refractOffset * (1.0 + u_chromaticAberration), 0.001, 0.999);
 
-  // 2. Caustic light focusing (surface curvature / divergence of normal)
-  float curvature = (hR + hL + hT + hB - 4.0 * h) * 48.0;
-  float caustic = clamp(curvature, 0.0, 1.0);
-  waterColor += vec3(0.68, 0.82, 1.0) * (caustic * 0.22);
+  float r = evalBackground(uvR).r;
+  float g = evalBackground(uvG).g;
+  float b = evalBackground(uvB).b;
+  vec3 color = vec3(r, g, b);
 
-  // 3. Iridescent Sheen on Wave Crests (#847DFF, #38bdf8, #9FE870, #D1C9FF)
+  // Lighting & Viscous Specular Highlights
   vec3 viewDir = vec3(0.0, 0.0, 1.0);
+
+  // 1. Key directional light from upper left
+  vec3 lightDir1 = normalize(vec3(-0.4, 0.65, 0.75));
+  vec3 half1 = normalize(lightDir1 + viewDir);
+  float spec1 = pow(max(dot(normal, half1), 0.0), u_specularShininess);
+
+  // 2. Cursor spotlight following the pointer
+  vec3 lightDir2 = normalize(vec3((u_cursor.x - 0.5) * u_aspect_vec.x * 1.5, (u_cursor.y - 0.5) * 1.5, 0.6));
+  vec3 half2 = normalize(lightDir2 + viewDir);
+  float spec2 = pow(max(dot(normal, half2), 0.0), u_specularShininess * 0.85) * u_mouse_hover;
+
+  float totalSpec = (spec1 * 0.72 + spec2 * 0.55) * u_specularStrength;
+
+  // Fresnel rim reflection at grazing angles
   float NdotV = max(dot(normal, viewDir), 0.0);
-  float fresnel = pow(1.0 - NdotV, 3.0);
+  float fresnel = pow(1.0 - NdotV, 3.5) * u_fresnelSheen;
 
-  float wavePhase = h * 16.0 + (normal.x + normal.y) * 2.2 + u_time * 0.45;
-  vec3 iris = vec3(0.518, 0.490, 1.000);   // #847DFF
-  vec3 cyan = vec3(0.220, 0.741, 0.973);   // #38bdf8
-  vec3 lime = vec3(0.624, 0.910, 0.439);   // #9FE870
+  vec3 specularColor = vec3(1.0, 1.0, 1.0) * totalSpec;
+  vec3 sheenColor = vec3(0.65, 0.80, 1.0) * fresnel;
+  float caustic = max(0.0, currentHeight) * 0.12;
 
-  vec3 irid = mix(iris, cyan, sin(wavePhase) * 0.5 + 0.5);
-  irid = mix(irid, lime, clamp(sin(wavePhase * 1.35 + 1.1), 0.0, 1.0));
+  color += specularColor + sheenColor + vec3(caustic);
 
-  float waveSlope = length(grad);
-  float sheenIntensity = (fresnel * 0.75 + waveSlope * 0.55) * smoothstep(0.01, 0.16, abs(h) + waveSlope * 0.1);
-  waterColor += irid * clamp(sheenIntensity, 0.0, 0.88);
-
-  // 4. Specular Highlights from Spotlight & Overhead Studio Light
-  // Cursor spotlight specular
-  vec3 lightPos1 = vec3(u_mouse_glow.x, u_mouse_glow.y, 0.42);
-  vec3 lightDir1 = normalize(vec3(lightPos1.xy - v_uv, lightPos1.z));
-  vec3 halfDir1 = normalize(lightDir1 + viewDir);
-  float spec1 = pow(max(dot(normal, halfDir1), 0.0), 36.0) * u_mouse_hover;
-
-  // Overhead soft studio light
-  vec3 lightDir2 = normalize(vec3(0.12, 0.65, 0.75));
-  vec3 halfDir2 = normalize(lightDir2 + viewDir);
-  float spec2 = pow(max(dot(normal, halfDir2), 0.0), 56.0);
-
-  vec3 specular = vec3(1.0, 1.0, 1.0) * (spec1 * 0.95 + spec2 * 0.5);
-  specular += iris * (spec1 * 0.35);
-
-  vec3 finalColor = waterColor + specular;
-
-  gl_FragColor = vec4(finalColor, 1.0);
+  gl_FragColor = vec4(color, 1.0);
 }
 `;
 
 // ── WebGL Helpers ─────────────────────────────────────────────────────────────
 
-function createShader(gl: WebGLRenderingContext, type: number, source: string): WebGLShader | null {
+function createShader(gl: WebGLRenderingContext | WebGL2RenderingContext, type: number, source: string): WebGLShader | null {
   const shader = gl.createShader(type);
   if (!shader) return null;
   gl.shaderSource(shader, source);
@@ -271,7 +237,11 @@ function createShader(gl: WebGLRenderingContext, type: number, source: string): 
   return shader;
 }
 
-function createProgram(gl: WebGLRenderingContext, vsSource: string, fsSource: string): WebGLProgram | null {
+function createProgram(
+  gl: WebGLRenderingContext | WebGL2RenderingContext,
+  vsSource: string,
+  fsSource: string
+): WebGLProgram | null {
   const vs = createShader(gl, gl.VERTEX_SHADER, vsSource);
   const fs = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
   if (!vs || !fs) return null;
@@ -346,521 +316,491 @@ function createFBO(
 
 export const WaterGlowBackground: React.FC<WaterGlowBackgroundProps> = ({
   className = '',
-  damping = 0.988,
-  ambientRain = true,
+  damping = 0.984,
+  ambientRain = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      const container = containerRef.current;
+      if (!canvas || !container) return;
 
-    const reducedMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const reducedMotion =
+        typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // ── Attempt WebGL Initialization ─────────────────────────────────────────
-    let gl: (WebGL2RenderingContext | WebGLRenderingContext) | null = null;
-    let isWebGL2 = false;
-    let hasFloat = false;
+      // ── Attempt WebGL Initialization ─────────────────────────────────────────
+      let gl: (WebGL2RenderingContext | WebGLRenderingContext) | null = null;
+      let isWebGL2 = false;
+      let hasFloat = false;
 
-    try {
-      gl = canvas.getContext('webgl2', {
-        alpha: false,
-        antialias: false,
-        depth: false,
-        stencil: false,
-        preserveDrawingBuffer: false,
-        powerPreference: 'high-performance',
-      }) as WebGL2RenderingContext | null;
-
-      if (gl) {
-        isWebGL2 = true;
-        hasFloat = Boolean(gl.getExtension('EXT_color_buffer_float'));
-      } else {
-        gl = (canvas.getContext('webgl', {
+      try {
+        gl = canvas.getContext('webgl2', {
           alpha: false,
           antialias: false,
           depth: false,
           stencil: false,
-        }) || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
+          preserveDrawingBuffer: false,
+          powerPreference: 'high-performance',
+        }) as WebGL2RenderingContext | null;
 
         if (gl) {
-          const ext1 = gl.getExtension('OES_texture_float');
-          const ext2 = gl.getExtension('EXT_color_buffer_half_float');
-          hasFloat = Boolean(ext1 || ext2);
+          isWebGL2 = true;
+          hasFloat = Boolean(gl.getExtension('EXT_color_buffer_float'));
+        } else {
+          gl = (canvas.getContext('webgl', {
+            alpha: false,
+            antialias: false,
+            depth: false,
+            stencil: false,
+          }) || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
+
+          if (gl) {
+            const ext1 = gl.getExtension('OES_texture_half_float');
+            const ext2 = gl.getExtension('EXT_color_buffer_half_float');
+            hasFloat = Boolean(ext1 || ext2);
+          }
         }
+      } catch {
+        gl = null;
       }
-    } catch {
-      gl = null;
-    }
 
-    // ── Graceful Fallback if WebGL is unavailable ────────────────────────────
-    if (!gl) {
-      const ctx2d = canvas.getContext('2d');
-      if (!ctx2d) return;
+      // ── Graceful Fallback if WebGL is unavailable ────────────────────────────
+      if (!gl) {
+        const ctx2d = canvas.getContext('2d');
+        if (!ctx2d) return;
 
-      let fallbackAnimId = 0;
-      let width = 0;
-      let height = 0;
+        let fallbackAnimId = 0;
+        let width = 0;
+        let height = 0;
 
-      const resize2d = () => {
+        const resize2d = () => {
+          const rect = container.getBoundingClientRect();
+          width = rect.width;
+          height = rect.height;
+          const dpr = Math.min(window.devicePixelRatio || 1, 2);
+          canvas.width = Math.round(width * dpr);
+          canvas.height = Math.round(height * dpr);
+          ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+        };
+
+        resize2d();
+        window.addEventListener('resize', resize2d);
+
+        const startTime = performance.now();
+        const render2d = (now: number) => {
+          fallbackAnimId = requestAnimationFrame(render2d);
+          const t = (now - startTime) * 0.0004;
+          ctx2d.clearRect(0, 0, width, height);
+
+          // Dark obsidian background
+          ctx2d.fillStyle = '#07080a';
+          ctx2d.fillRect(0, 0, width, height);
+
+          // Subtle ambient glow
+          const cx1 = width * (0.42 + Math.sin(t * 0.8) * 0.08);
+          const cy1 = height * (0.50 + Math.cos(t * 0.6) * 0.08);
+          const grad1 = ctx2d.createRadialGradient(cx1, cy1, 0, cx1, cy1, Math.min(width, height) * 0.45);
+          grad1.addColorStop(0, 'rgba(79, 70, 229, 0.16)');
+          grad1.addColorStop(0.6, 'rgba(79, 70, 229, 0.03)');
+          grad1.addColorStop(1, 'rgba(7, 8, 10, 0)');
+          ctx2d.fillStyle = grad1;
+          ctx2d.fillRect(0, 0, width, height);
+
+          const cx2 = width * (0.68 + Math.cos(t * 0.9) * 0.07);
+          const cy2 = height * (0.55 + Math.sin(t * 0.7) * 0.07);
+          const grad2 = ctx2d.createRadialGradient(cx2, cy2, 0, cx2, cy2, Math.min(width, height) * 0.38);
+          grad2.addColorStop(0, 'rgba(56, 189, 248, 0.12)');
+          grad2.addColorStop(0.5, 'rgba(56, 189, 248, 0.02)');
+          grad2.addColorStop(1, 'rgba(7, 8, 10, 0)');
+          ctx2d.fillStyle = grad2;
+          ctx2d.fillRect(0, 0, width, height);
+        };
+
+        fallbackAnimId = requestAnimationFrame(render2d);
+        return () => {
+          cancelAnimationFrame(fallbackAnimId);
+          window.removeEventListener('resize', resize2d);
+        };
+      }
+
+      // ── Setup WebGL Liquid Simulation ────────────────────────────────────────
+      const SIM_RES = 384;
+      const initialFboA = createFBO(gl, isWebGL2, hasFloat, SIM_RES);
+      const initialFboB = createFBO(gl, isWebGL2, hasFloat, SIM_RES);
+
+      if (!initialFboA || !initialFboB) return;
+
+      let fboA: FBOBundle = initialFboA;
+      let fboB: FBOBundle = initialFboB;
+
+      // Clear FBOs initially
+      [fboA, fboB].forEach((f) => {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, f.fbo);
+        gl.viewport(0, 0, SIM_RES, SIM_RES);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+      });
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+      const simProgram = createProgram(gl, VS_QUAD, FS_SIMULATION);
+      const renderProgram = createProgram(gl, VS_QUAD, FS_RENDER);
+
+      if (!simProgram || !renderProgram) return;
+
+      // Fullscreen quad buffer
+      const quadVbo = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, quadVbo);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
+        gl.STATIC_DRAW
+      );
+
+      // Simulation uniform locations
+      const simUniforms = {
+        u_current: gl.getUniformLocation(simProgram, 'u_current'),
+        u_texel: gl.getUniformLocation(simProgram, 'u_texel'),
+        u_aspect_vec: gl.getUniformLocation(simProgram, 'u_aspect_vec'),
+        u_damping: gl.getUniformLocation(simProgram, 'u_damping'),
+        u_mouse_active: gl.getUniformLocation(simProgram, 'u_mouse_active'),
+        u_prev_cursor: gl.getUniformLocation(simProgram, 'u_prev_cursor'),
+        u_curr_cursor: gl.getUniformLocation(simProgram, 'u_curr_cursor'),
+        u_mouse_radius: gl.getUniformLocation(simProgram, 'u_mouse_radius'),
+        u_mouse_strength: gl.getUniformLocation(simProgram, 'u_mouse_strength'),
+        u_splash_active: gl.getUniformLocation(simProgram, 'u_splash_active'),
+        u_splash_pos: gl.getUniformLocation(simProgram, 'u_splash_pos'),
+        u_splash_radius: gl.getUniformLocation(simProgram, 'u_splash_radius'),
+        u_splash_strength: gl.getUniformLocation(simProgram, 'u_splash_strength'),
+        u_ambient_active: gl.getUniformLocation(simProgram, 'u_ambient_active'),
+        u_ambient_pos: gl.getUniformLocation(simProgram, 'u_ambient_pos'),
+        u_ambient_radius: gl.getUniformLocation(simProgram, 'u_ambient_radius'),
+        u_ambient_strength: gl.getUniformLocation(simProgram, 'u_ambient_strength'),
+      };
+
+      // Render uniform locations
+      const renderUniforms = {
+        u_waterMap: gl.getUniformLocation(renderProgram, 'u_waterMap'),
+        u_texel: gl.getUniformLocation(renderProgram, 'u_texel'),
+        u_aspect_vec: gl.getUniformLocation(renderProgram, 'u_aspect_vec'),
+        u_cursor: gl.getUniformLocation(renderProgram, 'u_cursor'),
+        u_time: gl.getUniformLocation(renderProgram, 'u_time'),
+        u_mouse_hover: gl.getUniformLocation(renderProgram, 'u_mouse_hover'),
+        u_refractionStrength: gl.getUniformLocation(renderProgram, 'u_refractionStrength'),
+        u_chromaticAberration: gl.getUniformLocation(renderProgram, 'u_chromaticAberration'),
+        u_specularShininess: gl.getUniformLocation(renderProgram, 'u_specularShininess'),
+        u_specularStrength: gl.getUniformLocation(renderProgram, 'u_specularStrength'),
+        u_fresnelSheen: gl.getUniformLocation(renderProgram, 'u_fresnelSheen'),
+      };
+
+      // ── Interaction & State Tracking ─────────────────────────────────────────
+      let animId = 0;
+      let isVisible = true;
+      let aspectX = 1.0;
+      let aspectY = 1.0;
+
+      const mouse = {
+        current: { x: 0.5, y: 0.5 },
+        target: { x: 0.5, y: 0.5 },
+        prev: { x: 0.5, y: 0.5 },
+        speed: 0,
+        active: false,
+        isMoving: false,
+        hoverWeight: 0,
+      };
+
+      const splash = {
+        active: false,
+        x: 0.5,
+        y: 0.5,
+        strength: 0,
+        radius: 0.055,
+      };
+
+      let lastAmbientDrop = performance.now();
+
+      const resize = () => {
         const rect = container.getBoundingClientRect();
-        width = rect.width;
-        height = rect.height;
+        const width = rect.width;
+        const height = rect.height;
+        if (width <= 0 || height <= 0) return;
+
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
         canvas.width = Math.round(width * dpr);
         canvas.height = Math.round(height * dpr);
-        ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
-      };
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
 
-      resize2d();
-      window.addEventListener('resize', resize2d);
-
-      let startTime = performance.now();
-      const render2d = (now: number) => {
-        fallbackAnimId = requestAnimationFrame(render2d);
-        const t = (now - startTime) * 0.0004;
-        ctx2d.clearRect(0, 0, width, height);
-
-        const cx1 = width * (0.5 + Math.sin(t * 0.8) * 0.16);
-        const cy1 = height * (0.55 + Math.cos(t * 0.6) * 0.14);
-        const grad1 = ctx2d.createRadialGradient(cx1, cy1, 0, cx1, cy1, Math.min(width, height) * 0.48);
-        grad1.addColorStop(0, 'rgba(132, 125, 255, 0.22)');
-        grad1.addColorStop(0.5, 'rgba(132, 125, 255, 0.06)');
-        grad1.addColorStop(1, 'rgba(11, 12, 13, 0)');
-        ctx2d.fillStyle = grad1;
-        ctx2d.fillRect(0, 0, width, height);
-
-        const cx2 = width * (0.64 + Math.cos(t * 0.9) * 0.14);
-        const cy2 = height * (0.62 + Math.sin(t * 0.7) * 0.12);
-        const grad2 = ctx2d.createRadialGradient(cx2, cy2, 0, cx2, cy2, Math.min(width, height) * 0.38);
-        grad2.addColorStop(0, 'rgba(56, 189, 248, 0.14)');
-        grad2.addColorStop(0.4, 'rgba(159, 232, 112, 0.07)');
-        grad2.addColorStop(1, 'rgba(11, 12, 13, 0)');
-        ctx2d.fillStyle = grad2;
-        ctx2d.fillRect(0, 0, width, height);
-      };
-
-      fallbackAnimId = requestAnimationFrame(render2d);
-      return () => {
-        cancelAnimationFrame(fallbackAnimId);
-        window.removeEventListener('resize', resize2d);
-      };
-    }
-
-    // ── Setup WebGL Liquid Simulation ────────────────────────────────────────
-    const SIM_RES = 384;
-    const initialFboA = createFBO(gl, isWebGL2, hasFloat, SIM_RES);
-    const initialFboB = createFBO(gl, isWebGL2, hasFloat, SIM_RES);
-
-    if (!initialFboA || !initialFboB) return;
-
-    let fboA: FBOBundle = initialFboA;
-    let fboB: FBOBundle = initialFboB;
-
-    const simProgram = createProgram(gl, VS_QUAD, FS_SIMULATION);
-    const renderProgram = createProgram(gl, VS_QUAD, FS_RENDER);
-
-    if (!simProgram || !renderProgram) return;
-
-    // Fullscreen quad buffer
-    const quadVbo = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, quadVbo);
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
-      gl.STATIC_DRAW
-    );
-
-    // Simulation uniform locations
-    const simUniforms = {
-      u_current: gl.getUniformLocation(simProgram, 'u_current'),
-      u_texel: gl.getUniformLocation(simProgram, 'u_texel'),
-      u_aspect: gl.getUniformLocation(simProgram, 'u_aspect'),
-      u_damping: gl.getUniformLocation(simProgram, 'u_damping'),
-      u_mouse_active: gl.getUniformLocation(simProgram, 'u_mouse_active'),
-      u_mouse_pos: gl.getUniformLocation(simProgram, 'u_mouse_pos'),
-      u_mouse_prev: gl.getUniformLocation(simProgram, 'u_mouse_prev'),
-      u_mouse_radius: gl.getUniformLocation(simProgram, 'u_mouse_radius'),
-      u_mouse_strength: gl.getUniformLocation(simProgram, 'u_mouse_strength'),
-      u_click_active: gl.getUniformLocation(simProgram, 'u_click_active'),
-      u_click_pos: gl.getUniformLocation(simProgram, 'u_click_pos'),
-      u_click_radius: gl.getUniformLocation(simProgram, 'u_click_radius'),
-      u_click_strength: gl.getUniformLocation(simProgram, 'u_click_strength'),
-      u_scroll_active: gl.getUniformLocation(simProgram, 'u_scroll_active'),
-      u_scroll_y: gl.getUniformLocation(simProgram, 'u_scroll_y'),
-      u_scroll_strength: gl.getUniformLocation(simProgram, 'u_scroll_strength'),
-      u_scroll_phase: gl.getUniformLocation(simProgram, 'u_scroll_phase'),
-      u_drop_active: gl.getUniformLocation(simProgram, 'u_drop_active'),
-      u_drop_pos: gl.getUniformLocation(simProgram, 'u_drop_pos'),
-      u_drop_radius: gl.getUniformLocation(simProgram, 'u_drop_radius'),
-      u_drop_strength: gl.getUniformLocation(simProgram, 'u_drop_strength'),
-    };
-
-    // Render uniform locations
-    const renderUniforms = {
-      u_heights: gl.getUniformLocation(renderProgram, 'u_heights'),
-      u_texel: gl.getUniformLocation(renderProgram, 'u_texel'),
-      u_aspect: gl.getUniformLocation(renderProgram, 'u_aspect'),
-      u_resolution: gl.getUniformLocation(renderProgram, 'u_resolution'),
-      u_time: gl.getUniformLocation(renderProgram, 'u_time'),
-      u_mouse_glow: gl.getUniformLocation(renderProgram, 'u_mouse_glow'),
-      u_mouse_hover: gl.getUniformLocation(renderProgram, 'u_mouse_hover'),
-      u_normal_scale: gl.getUniformLocation(renderProgram, 'u_normal_scale'),
-    };
-
-    // ── Interaction & State Tracking ─────────────────────────────────────────
-    let animId = 0;
-    let isVisible = true;
-    let width = 0;
-    let height = 0;
-    let aspectX = 1;
-    let aspectY = 1;
-
-    const mouse = {
-      x: 0.5,
-      y: 0.5,
-      prevX: 0.5,
-      prevY: 0.5,
-      glowX: 0.5,
-      glowY: 0.5,
-      speed: 0,
-      active: false,
-      hoverWeight: 0,
-    };
-
-    const splash = {
-      active: false,
-      x: 0.5,
-      y: 0.5,
-      strength: 0,
-      radius: 0.045,
-    };
-
-    const scrollState = {
-      active: false,
-      y: 0.5,
-      strength: 0,
-      phase: 0,
-      lastScrollY: typeof window !== 'undefined' ? window.scrollY : 0,
-      lastScrollTime: performance.now(),
-    };
-
-    const drop = {
-      active: false,
-      x: 0.5,
-      y: 0.5,
-      strength: 0,
-      radius: 0.038,
-      lastDropTime: performance.now(),
-    };
-
-    const resize = () => {
-      const rect = container.getBoundingClientRect();
-      width = rect.width;
-      height = rect.height;
-      if (width <= 0 || height <= 0) return;
-
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.round(width * dpr);
-      canvas.height = Math.round(height * dpr);
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-
-      aspectX = width >= height ? width / height : 1.0;
-      aspectY = height > width ? height / width : 1.0;
-    };
-
-    resize();
-    window.addEventListener('resize', resize);
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        isVisible = Boolean(entry?.isIntersecting);
-      },
-      { threshold: 0.05 }
-    );
-    observer.observe(container);
-
-    // ── Pointer Handlers ─────────────────────────────────────────────────────
-    const getContainerCoords = (clientX: number, clientY: number) => {
-      const rect = container.getBoundingClientRect();
-      const u = (clientX - rect.left) / rect.width;
-      const v = 1.0 - (clientY - rect.top) / rect.height; // Invert for GL UV
-      return { u, v, inside: u >= 0 && u <= 1 && v >= 0 && v <= 1 };
-    };
-
-    const handlePointerMove = (e: MouseEvent | TouchEvent) => {
-      let clientX = 0;
-      let clientY = 0;
-
-      const firstTouch = 'touches' in e && e.touches.length > 0 ? e.touches[0] : undefined;
-      if (firstTouch) {
-        clientX = firstTouch.clientX;
-        clientY = firstTouch.clientY;
-      } else if ('clientX' in e) {
-        clientX = (e as MouseEvent).clientX;
-        clientY = (e as MouseEvent).clientY;
-      }
-
-      const { u, v, inside } = getContainerCoords(clientX, clientY);
-
-      if (inside) {
-        if (!mouse.active) {
-          mouse.prevX = u;
-          mouse.prevY = v;
-          mouse.glowX = u;
-          mouse.glowY = v;
-          mouse.active = true;
+        const aspect = width / height;
+        if (aspect >= 1.0) {
+          aspectX = aspect;
+          aspectY = 1.0;
+        } else {
+          aspectX = 1.0;
+          aspectY = 1.0 / aspect;
         }
+      };
 
-        const dx = (u - mouse.prevX) * aspectX;
-        const dy = (v - mouse.prevY) * aspectY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        mouse.speed = dist;
+      resize();
+      window.addEventListener('resize', resize, { passive: true });
 
-        mouse.x = u;
-        mouse.y = v;
-      } else {
-        mouse.active = false;
-      }
-    };
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const entry = entries[0];
+          isVisible = Boolean(entry?.isIntersecting);
+        },
+        { threshold: 0.05 }
+      );
+      observer.observe(container);
 
-    const triggerSplash = (u: number, v: number, intensity = 1.2) => {
-      splash.active = true;
-      splash.x = u;
-      splash.y = v;
-      splash.strength = intensity;
-      splash.radius = 0.042 * Math.min(1.5, Math.max(0.7, intensity));
+      // ── Pointer Handlers ─────────────────────────────────────────────────────
+      const getContainerCoords = (clientX: number, clientY: number) => {
+        const rect = container.getBoundingClientRect();
+        const u = (clientX - rect.left) / rect.width;
+        const v = 1.0 - (clientY - rect.top) / rect.height; // Invert for WebGL Y
+        return { u, v, inside: u >= 0 && u <= 1 && v >= 0 && v <= 1 };
+      };
 
-      // Hydrodynamic droplet rebound after-splash (65ms later)
-      setTimeout(() => {
-        if (!isVisible) return;
+      const triggerSplash = (u: number, v: number, intensity = 0.95) => {
         splash.active = true;
-        splash.x = u + (Math.random() - 0.5) * 0.01;
-        splash.y = v + (Math.random() - 0.5) * 0.01;
-        splash.strength = intensity * 0.65;
-        splash.radius = 0.035;
-      }, 65);
-    };
+        splash.x = u;
+        splash.y = v;
+        splash.strength = intensity;
+        splash.radius = 0.065;
 
-    const handleClick = (e: MouseEvent | TouchEvent) => {
-      let clientX = 0;
-      let clientY = 0;
-      if ('touches' in e && e.touches.length > 0) {
-        const touch = e.touches[0];
-        if (touch) {
-          clientX = touch.clientX;
-          clientY = touch.clientY;
+        mouse.target.x = u;
+        mouse.target.y = v;
+        mouse.current.x = u;
+        mouse.current.y = v;
+        mouse.prev.x = u;
+        mouse.prev.y = v;
+        mouse.active = true;
+      };
+
+
+      const handlePointerMove = (e: MouseEvent | TouchEvent) => {
+        let clientX = 0;
+        let clientY = 0;
+
+        const firstTouch = 'touches' in e && e.touches.length > 0 ? e.touches[0] : undefined;
+        if (firstTouch) {
+          clientX = firstTouch.clientX;
+          clientY = firstTouch.clientY;
+        } else if ('clientX' in e) {
+          clientX = (e as MouseEvent).clientX;
+          clientY = (e as MouseEvent).clientY;
         }
-      } else if ('clientX' in e) {
-        clientX = (e as MouseEvent).clientX;
-        clientY = (e as MouseEvent).clientY;
-      }
-      const { u, v, inside } = getContainerCoords(clientX, clientY);
-      if (inside) {
-        triggerSplash(u, v, 1.45);
-      }
-    };
 
-    // ── Scroll Fluid Wave Perturbations ──────────────────────────────────────
-    const handleScroll = () => {
-      if (!isVisible || reducedMotion) return;
-      const now = performance.now();
-      const dt = Math.max(1, now - scrollState.lastScrollTime);
-      const currentScrollY = window.scrollY;
-      const delta = currentScrollY - scrollState.lastScrollY;
-      const velocity = delta / dt;
+        const { u, v, inside } = getContainerCoords(clientX, clientY);
 
-      scrollState.lastScrollY = currentScrollY;
-      scrollState.lastScrollTime = now;
-
-      if (Math.abs(velocity) > 0.06) {
-        scrollState.active = true;
-        scrollState.y = delta > 0 ? 0.8 : 0.2; // Propagate in scroll direction
-        scrollState.strength = Math.min(Math.abs(velocity) * 0.65, 0.5) * Math.sign(velocity);
-        scrollState.phase += 0.45;
-      }
-    };
-
-    const handleWheel = (e: WheelEvent) => {
-      if (!isVisible || reducedMotion) return;
-      const velocity = e.deltaY;
-      if (Math.abs(velocity) > 12) {
-        scrollState.active = true;
-        scrollState.y = velocity > 0 ? 0.85 : 0.15;
-        scrollState.strength = Math.min(Math.abs(velocity) * 0.003, 0.45) * Math.sign(velocity);
-        scrollState.phase += 0.55;
-      }
-    };
-
-    window.addEventListener('mousemove', handlePointerMove, { passive: true });
-    window.addEventListener('touchmove', handlePointerMove, { passive: true });
-    container.addEventListener('pointerdown', handleClick);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('wheel', handleWheel, { passive: true });
-
-    // ── Main Simulation & Render Loop ────────────────────────────────────────
-    let startTime = performance.now();
-
-    const render = (now: number) => {
-      animId = requestAnimationFrame(render);
-      if (!isVisible) return;
-
-      const elapsed = (now - startTime) * 0.001;
-
-      // Smooth cursor hover weight and glow lerp
-      if (mouse.active) {
-        mouse.hoverWeight += (1.0 - mouse.hoverWeight) * 0.08;
-      } else {
-        mouse.hoverWeight += (0.0 - mouse.hoverWeight) * 0.04;
-      }
-      mouse.glowX += (mouse.x - mouse.glowX) * 0.09;
-      mouse.glowY += (mouse.y - mouse.glowY) * 0.09;
-
-      // Idle ambient gentle raindrop
-      if (ambientRain && !mouse.active && !reducedMotion) {
-        if (now - drop.lastDropTime > 2400) {
-          drop.lastDropTime = now;
-          drop.active = true;
-          drop.x = 0.2 + Math.random() * 0.6;
-          drop.y = 0.2 + Math.random() * 0.6;
-          drop.strength = 0.65 + Math.random() * 0.35;
-          drop.radius = 0.035;
+        if (inside) {
+          if (!mouse.active) {
+            mouse.current.x = u;
+            mouse.current.y = v;
+            mouse.prev.x = u;
+            mouse.prev.y = v;
+            mouse.target.x = u;
+            mouse.target.y = v;
+            mouse.active = true;
+          } else {
+            mouse.target.x = u;
+            mouse.target.y = v;
+          }
+        } else {
+          mouse.active = false;
         }
-      }
+      };
 
-      // ── Step 1: Fluid Simulation Pass (ping-pong to fboB) ───────────────────
-      if (!reducedMotion) {
-        gl.useProgram(simProgram);
+      const handleClick = (e: MouseEvent | TouchEvent) => {
+        let clientX = 0;
+        let clientY = 0;
+        if ('touches' in e && e.touches.length > 0) {
+          const touch = e.touches[0];
+          if (touch) {
+            clientX = touch.clientX;
+            clientY = touch.clientY;
+          }
+        } else if ('clientX' in e) {
+          clientX = (e as MouseEvent).clientX;
+          clientY = (e as MouseEvent).clientY;
+        }
+        const { u, v, inside } = getContainerCoords(clientX, clientY);
+        if (inside) {
+          triggerSplash(u, v, 0.95);
+        }
+      };
 
-        // Bind source texture
+      const handlePointerLeave = () => {
+        mouse.active = false;
+        mouse.isMoving = false;
+      };
+
+      window.addEventListener('mousemove', handlePointerMove, { passive: true });
+      window.addEventListener('touchmove', handlePointerMove, { passive: true });
+      container.addEventListener('pointerdown', handleClick);
+      container.addEventListener('pointerleave', handlePointerLeave);
+
+      // ── Main Simulation & Render Loop ────────────────────────────────────────
+      const startTime = performance.now();
+
+      const render = (now: number) => {
+        animId = requestAnimationFrame(render);
+        if (!isVisible) return;
+
+        const elapsed = (now - startTime) * 0.001;
+
+        // Smooth cursor hover weight and lerp
+        if (mouse.active) {
+          mouse.hoverWeight += (1.0 - mouse.hoverWeight) * 0.12;
+
+          mouse.prev.x = mouse.current.x;
+          mouse.prev.y = mouse.current.y;
+
+          mouse.current.x += (mouse.target.x - mouse.current.x) * 0.32;
+          mouse.current.y += (mouse.target.y - mouse.current.y) * 0.32;
+
+          const dx = (mouse.current.x - mouse.prev.x) * aspectX;
+          const dy = (mouse.current.y - mouse.prev.y) * aspectY;
+          mouse.speed = Math.hypot(dx, dy);
+          mouse.isMoving = mouse.speed > 0.0006;
+        } else {
+          mouse.hoverWeight += (0.0 - mouse.hoverWeight) * 0.05;
+          mouse.isMoving = false;
+          mouse.speed = 0;
+        }
+
+        // Ambient idle drop
+        let ambientActive = false;
+        let ambientX = 0.5;
+        let ambientY = 0.5;
+
+        if (ambientRain && !mouse.active && !reducedMotion) {
+          if (now - lastAmbientDrop > 2200) {
+            lastAmbientDrop = now;
+            ambientActive = true;
+            ambientX = 0.2 + Math.random() * 0.6;
+            ambientY = 0.2 + Math.random() * 0.6;
+          }
+        }
+
+        // ── Pass 1: Fluid Simulation Pass (ping-pong to fboB) ───────────────────
+        if (!reducedMotion) {
+          gl.useProgram(simProgram);
+
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, fboA.texture);
+          gl.uniform1i(simUniforms.u_current, 0);
+
+          gl.uniform2f(simUniforms.u_texel, 1.0 / SIM_RES, 1.0 / SIM_RES);
+          gl.uniform2f(simUniforms.u_aspect_vec, aspectX, aspectY);
+          gl.uniform1f(simUniforms.u_damping, damping);
+
+          // Mouse wake injection
+          gl.uniform1f(simUniforms.u_mouse_active, mouse.isMoving ? 1.0 : 0.0);
+          gl.uniform2f(simUniforms.u_prev_cursor, mouse.prev.x, mouse.prev.y);
+          gl.uniform2f(simUniforms.u_curr_cursor, mouse.current.x, mouse.current.y);
+          gl.uniform1f(simUniforms.u_mouse_radius, 0.038);
+          gl.uniform1f(simUniforms.u_mouse_strength, Math.min(0.65, 0.12 + mouse.speed * 6.0));
+
+          // Click splash injection
+          gl.uniform1f(simUniforms.u_splash_active, splash.active ? 1.0 : 0.0);
+          gl.uniform2f(simUniforms.u_splash_pos, splash.x, splash.y);
+          gl.uniform1f(simUniforms.u_splash_radius, splash.radius);
+          gl.uniform1f(simUniforms.u_splash_strength, splash.strength);
+          splash.active = false; // Consumed
+
+          // Ambient raindrop injection
+          gl.uniform1f(simUniforms.u_ambient_active, ambientActive ? 1.0 : 0.0);
+          gl.uniform2f(simUniforms.u_ambient_pos, ambientX, ambientY);
+          gl.uniform1f(simUniforms.u_ambient_radius, 0.030);
+          gl.uniform1f(simUniforms.u_ambient_strength, 0.40);
+
+          // Render simulation to FBO B
+          gl.bindFramebuffer(gl.FRAMEBUFFER, fboB.fbo);
+          gl.viewport(0, 0, SIM_RES, SIM_RES);
+
+          const posAttrSim = gl.getAttribLocation(simProgram, 'a_position');
+          gl.enableVertexAttribArray(posAttrSim);
+          gl.bindBuffer(gl.ARRAY_BUFFER, quadVbo);
+          gl.vertexAttribPointer(posAttrSim, 2, gl.FLOAT, false, 0, 0);
+
+          gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+          // Swap ping-pong FBOs (fboB becomes source for render pass)
+          const temp = fboA;
+          fboA = fboB;
+          fboB = temp;
+        }
+
+        // ── Pass 2: Optical Liquid Render Pass (draw to screen) ────────────────
+        gl.useProgram(renderProgram);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, canvas.width, canvas.height);
+
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, fboA.texture);
-        gl.uniform1i(simUniforms.u_current, 0);
+        gl.uniform1i(renderUniforms.u_waterMap, 0);
 
-        gl.uniform2f(simUniforms.u_texel, 1.0 / SIM_RES, 1.0 / SIM_RES);
-        gl.uniform2f(simUniforms.u_aspect, aspectX, aspectY);
-        gl.uniform1f(simUniforms.u_damping, damping);
+        gl.uniform2f(renderUniforms.u_texel, 1.0 / SIM_RES, 1.0 / SIM_RES);
+        gl.uniform2f(renderUniforms.u_aspect_vec, aspectX, aspectY);
+        gl.uniform2f(renderUniforms.u_cursor, mouse.current.x, mouse.current.y);
+        gl.uniform1f(renderUniforms.u_time, elapsed);
+        gl.uniform1f(renderUniforms.u_mouse_hover, mouse.hoverWeight);
 
-        // Mouse wake injection
-        const mouseMoved = mouse.active && mouse.speed > 0.002;
-        gl.uniform1f(simUniforms.u_mouse_active, mouseMoved ? 1.0 : 0.0);
-        gl.uniform2f(simUniforms.u_mouse_pos, mouse.x, mouse.y);
-        gl.uniform2f(simUniforms.u_mouse_prev, mouse.prevX, mouse.prevY);
-        gl.uniform1f(simUniforms.u_mouse_radius, 0.036);
-        gl.uniform1f(simUniforms.u_mouse_strength, Math.min(0.65, 0.15 + mouse.speed * 4.5));
+        gl.uniform1f(renderUniforms.u_refractionStrength, 0.85);
+        gl.uniform1f(renderUniforms.u_chromaticAberration, 0.035);
+        gl.uniform1f(renderUniforms.u_specularShininess, 40.0);
+        gl.uniform1f(renderUniforms.u_specularStrength, 0.55);
+        gl.uniform1f(renderUniforms.u_fresnelSheen, 0.32);
 
-        // Click splash injection
-        gl.uniform1f(simUniforms.u_click_active, splash.active ? 1.0 : 0.0);
-        gl.uniform2f(simUniforms.u_click_pos, splash.x, splash.y);
-        gl.uniform1f(simUniforms.u_click_radius, splash.radius);
-        gl.uniform1f(simUniforms.u_click_strength, splash.strength);
-        splash.active = false; // Consumed
-
-        // Scroll wave perturbation injection
-        gl.uniform1f(simUniforms.u_scroll_active, scrollState.active ? 1.0 : 0.0);
-        gl.uniform1f(simUniforms.u_scroll_y, scrollState.y);
-        gl.uniform1f(simUniforms.u_scroll_strength, scrollState.strength);
-        gl.uniform1f(simUniforms.u_scroll_phase, scrollState.phase);
-        scrollState.active = false; // Consumed
-
-        // Ambient raindrop injection
-        gl.uniform1f(simUniforms.u_drop_active, drop.active ? 1.0 : 0.0);
-        gl.uniform2f(simUniforms.u_drop_pos, drop.x, drop.y);
-        gl.uniform1f(simUniforms.u_drop_radius, drop.radius);
-        gl.uniform1f(simUniforms.u_drop_strength, drop.strength);
-        drop.active = false; // Consumed
-
-        // Update previous mouse coordinates
-        mouse.prevX = mouse.x;
-        mouse.prevY = mouse.y;
-
-        // Render simulation to FBO B
-        gl.bindFramebuffer(gl.FRAMEBUFFER, fboB.fbo);
-        gl.viewport(0, 0, SIM_RES, SIM_RES);
-
-        const posAttrSim = gl.getAttribLocation(simProgram, 'a_position');
-        gl.enableVertexAttribArray(posAttrSim);
+        const posAttrRender = gl.getAttribLocation(renderProgram, 'a_position');
+        gl.enableVertexAttribArray(posAttrRender);
         gl.bindBuffer(gl.ARRAY_BUFFER, quadVbo);
-        gl.vertexAttribPointer(posAttrSim, 2, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(posAttrRender, 2, gl.FLOAT, false, 0, 0);
 
         gl.drawArrays(gl.TRIANGLES, 0, 6);
+      };
 
-        // Swap ping-pong FBOs (fboB becomes source for render pass)
-        const temp = fboA;
-        fboA = fboB;
-        fboB = temp;
-      }
+      animId = requestAnimationFrame(render);
 
-      // ── Step 2: Optical Liquid Render Pass (draw to screen) ────────────────
-      gl.useProgram(renderProgram);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, canvas.width, canvas.height);
+      // ── Teardown & Resource Cleanup ──────────────────────────────────────────
+      return () => {
+        cancelAnimationFrame(animId);
+        window.removeEventListener('resize', resize);
+        window.removeEventListener('mousemove', handlePointerMove);
+        window.removeEventListener('touchmove', handlePointerMove);
+        container.removeEventListener('pointerdown', handleClick);
+        container.removeEventListener('pointerleave', handlePointerLeave);
+        observer.disconnect();
 
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, fboA.texture);
-      gl.uniform1i(renderUniforms.u_heights, 0);
-
-      gl.uniform2f(renderUniforms.u_texel, 1.0 / SIM_RES, 1.0 / SIM_RES);
-      gl.uniform2f(renderUniforms.u_aspect, aspectX, aspectY);
-      gl.uniform2f(renderUniforms.u_resolution, canvas.width, canvas.height);
-      gl.uniform1f(renderUniforms.u_time, elapsed);
-      gl.uniform2f(renderUniforms.u_mouse_glow, mouse.glowX, mouse.glowY);
-      gl.uniform1f(renderUniforms.u_mouse_hover, mouse.hoverWeight);
-      gl.uniform1f(renderUniforms.u_normal_scale, 14.0);
-
-      const posAttrRender = gl.getAttribLocation(renderProgram, 'a_position');
-      gl.enableVertexAttribArray(posAttrRender);
-      gl.bindBuffer(gl.ARRAY_BUFFER, quadVbo);
-      gl.vertexAttribPointer(posAttrRender, 2, gl.FLOAT, false, 0, 0);
-
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-    };
-
-    animId = requestAnimationFrame(render);
-
-    // ── Teardown & Resource Cleanup ──────────────────────────────────────────
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('resize', resize);
-      window.removeEventListener('mousemove', handlePointerMove);
-      window.removeEventListener('touchmove', handlePointerMove);
-      container.removeEventListener('pointerdown', handleClick);
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('wheel', handleWheel);
-      observer.disconnect();
-
-      if (gl) {
-        if (fboA) {
-          gl.deleteTexture(fboA.texture);
-          gl.deleteFramebuffer(fboA.fbo);
+        if (gl) {
+          if (fboA) {
+            gl.deleteTexture(fboA.texture);
+            gl.deleteFramebuffer(fboA.fbo);
+          }
+          if (fboB) {
+            gl.deleteTexture(fboB.texture);
+            gl.deleteFramebuffer(fboB.fbo);
+          }
+          if (simProgram) gl.deleteProgram(simProgram);
+          if (renderProgram) gl.deleteProgram(renderProgram);
+          if (quadVbo) gl.deleteBuffer(quadVbo);
         }
-        if (fboB) {
-          gl.deleteTexture(fboB.texture);
-          gl.deleteFramebuffer(fboB.fbo);
-        }
-        if (simProgram) gl.deleteProgram(simProgram);
-        if (renderProgram) gl.deleteProgram(renderProgram);
-        if (quadVbo) gl.deleteBuffer(quadVbo);
-      }
-    };
-  }, [damping, ambientRain]);
+      };
+    }, [damping, ambientRain]);
 
-  return (
-    <div
-      ref={containerRef}
-      aria-hidden="true"
-      className={`absolute inset-0 pointer-events-auto overflow-hidden ${className}`}
-    >
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 w-full h-full pointer-events-none"
-      />
-    </div>
-  );
-};
+    return (
+      <div
+        ref={containerRef}
+        aria-hidden="true"
+        className={`absolute inset-0 pointer-events-auto overflow-hidden ${className}`}
+      >
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 w-full h-full pointer-events-none"
+        />
+      </div>
+    );
+  };
