@@ -61,6 +61,11 @@ export function isRateLimitError(err: unknown): boolean {
   );
 }
 
+function isTransientProviderError(error: unknown): boolean {
+  if (!error || typeof error !== 'object' || !('status' in error)) return false;
+  return [500, 502, 503, 504].includes(Number(error.status));
+}
+
 export class RequestQueue {
   private heavyRpmLimit: number;
   private lightRpmLimit: number;
@@ -310,7 +315,7 @@ export class RequestQueue {
       }
     }
 
-    // 3. Execution with Serialized Slot Throttling & 429 Exponential Backoff + Jitter
+    // 3. Execution with serialized throttling and backoff for transient service errors
     let attempt = 0;
     while (attempt <= this.maxRetries) {
       try {
@@ -327,22 +332,20 @@ export class RequestQueue {
 
         return result;
       } catch (err: unknown) {
-        if (isRateLimitError(err)) {
+        const serviceUnavailable = isTransientProviderError(err);
+        if (isRateLimitError(err) || serviceUnavailable) {
+          const canUseFallback = Boolean(options.fallbackModel && currentModel !== options.fallbackModel);
+          const retryLimit = serviceUnavailable && canUseFallback ? Math.min(this.maxRetries, 1) : this.maxRetries;
           attempt++;
-          if (attempt <= this.maxRetries) {
+          if (attempt <= retryLimit) {
             const jitter = Math.random() * 200;
             const delay = this.baseBackoffMs * (2 ** (attempt - 1)) + jitter;
             await new Promise((resolve) => setTimeout(resolve, delay));
             continue;
           }
 
-          // Retries exhausted on this model!
-          // Try model fallback if we started on heavy tier and haven't tried fallbackModel yet
-          if (
-            currentTier === 'heavy' &&
-            options.fallbackModel &&
-            currentModel !== options.fallbackModel
-          ) {
+          // Retry a different model when a provider error persists or a heavy model hits its limit.
+          if ((currentTier === 'heavy' || serviceUnavailable) && canUseFallback && options.fallbackModel) {
             currentTier = 'light';
             currentModel = options.fallbackModel;
             attempt = 0; // reset retry counter for fallback model

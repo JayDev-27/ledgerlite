@@ -26,6 +26,7 @@ import {
   getPreviousPeriod,
   getNextPeriod,
 } from '@/lib/periods';
+import { todayInIndia } from '@/lib/periods/financialYear';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { formatPercentDelta } from '@/lib/periods/comparison';
 import { SkeletonLoader } from '@/components/common/SkeletonLoader';
@@ -72,7 +73,7 @@ export const ReportsPage: React.FC = () => {
   const { settings } = useSettingsStore();
 
   const [periodType, setPeriodType] = useState<PeriodType>('month');
-  const [referenceDate, setReferenceDate] = useState<string>('2026-11-15');
+  const [referenceDate, setReferenceDate] = useState(todayInIndia);
   const [customRange, setCustomRange] = useState<{ start?: string; end?: string }>({});
   const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [tempCustomStart, setTempCustomStart] = useState<string>('');

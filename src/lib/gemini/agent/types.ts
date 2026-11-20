@@ -45,41 +45,45 @@ export interface ProposeMemoryArgs {
   text: string;
 }
 
+export type TransactionEvidence =
+  | 'bank_credit' | 'bank_debit' | 'card_charge' | 'card_credit'
+  | 'paid_receipt' | 'explicit_expense' | 'unknown';
+export type ExtractedTransactionKind =
+  | 'expense' | 'income' | 'credit' | 'refund' | 'transfer' | 'card_payment' | 'cash_withdrawal' | 'unknown';
+
 export interface ExtractedTransactionItem {
   date: string;
   amount: number;
   merchant: string;
+  currency: string;
+  evidence: TransactionEvidence;
+  kind: ExtractedTransactionKind;
   category?: string;
   paymentMethod?: 'upi' | 'card' | 'cash' | 'net_banking' | 'wallet';
   notes?: string;
 }
 
-export interface ImportExtractedTransactionsArgs {
-  transactions: ExtractedTransactionItem[];
+export interface DocumentRowSource {
+  attachmentId: string;
+  page?: number;
+  line?: number;
+  heading?: string;
+  excerpt?: string;
+  verification: 'verified' | 'visual_review' | 'conflict';
+  reason?: string;
 }
 
-export interface AddTransactionArgs {
-  date: string;
-  amount: number;
-  merchant: string;
-  category?: string;
-  paymentMethod?: 'upi' | 'card' | 'cash' | 'net_banking' | 'wallet';
-  notes?: string;
-}
-
-export interface ExtractedTransactionProposal {
+export interface ExtractedTransactionProposal extends ExtractedTransactionItem {
   id: string;
-  date: string;
-  amount: number;
-  merchant: string;
-  category?: string;
   categoryId?: string;
-  paymentMethod?: 'upi' | 'card' | 'cash' | 'net_banking' | 'wallet';
-  notes?: string;
-  confidence?: number;
+  direction: 'credit' | 'debit' | 'unknown';
+  sourceFile?: string;
+  documentSource?: DocumentRowSource;
+  importBlockedReason?: string;
 }
 
 export interface FileAttachment {
+  id?: string;
   name: string;
   mimeType: string;
   data: string; // base64
@@ -120,8 +124,10 @@ export interface AgentTurnResult {
 export interface AgentRunOptions {
   userQuery: string;
   attachments?: FileAttachment[];
-  history?: Array<{ role: 'user' | 'assistant'; text: string; attachments?: FileAttachment[] }>;
+  history?: Array<{ role: 'user' | 'assistant'; text: string }>;
+  documentTransactions?: ExtractedTransactionProposal[];
   apiKey: string;
   model?: string;
   privacyMode?: boolean;
+  allowCloudAttachments?: boolean;
 }

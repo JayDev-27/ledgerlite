@@ -380,7 +380,7 @@ export const SettingsPage: React.FC = () => {
           </div>
 
           <p className="text-[11px] leading-relaxed text-deep-blue-800/80 dark:text-cream-300">
-            <strong>Mandatory Free-Tier Disclosure:</strong> Prompts sent over Google's free-tier Gemini API may be processed and reviewed by Google for product improvement. When <strong>Privacy Mode is enabled</strong> (default), {APP_NAME} strips all personal notes, exact receipt details, timestamps, and account identifiers locally in your browser before sending, transmitting only pseudonymized and aggregated quantitative data.
+            <strong>Mandatory Free-Tier Disclosure:</strong> Prompts sent over Google's free-tier Gemini API may be processed and reviewed by Google for product improvement. With <strong>Privacy Mode enabled</strong> (default), {APP_NAME} removes notes and redacts common identifiers in ledger data sent to Gemini. Recognized statement CSVs are read on this device. Other files are sent in full only when you allow Gemini to read them for that message.
           </p>
         </div>
 

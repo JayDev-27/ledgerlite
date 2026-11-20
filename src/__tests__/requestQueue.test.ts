@@ -120,6 +120,27 @@ describe('RequestQueue — Free-Tier Quota, Throttling, Retries & Fallback', () 
     expect(result).toBe('recovered-successfully');
   });
 
+  it('retries a Gemini 503 without treating invalid requests as transient', async () => {
+    const queue = new RequestQueue({ maxRetries: 2, baseBackoffMs: 1, repo: mockRepo });
+    const execute = vi.fn().mockRejectedValueOnce({ status: 503 }).mockResolvedValueOnce('extracted');
+    const request = { tier: 'light' as const, model: 'gemini-3.5-flash-lite', execute };
+    await expect(queue.enqueue(request)).resolves.toBe('extracted');
+    expect(execute).toHaveBeenCalledTimes(2);
+
+    execute.mockReset().mockRejectedValue({ status: 400 });
+    await expect(queue.enqueue(request)).rejects.toEqual({ status: 400 });
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses an alternate extraction model when the configured model stays unavailable', async () => {
+    const queue = new RequestQueue({ maxRetries: 0, repo: mockRepo });
+    const execute = vi.fn().mockRejectedValueOnce({ status: 503 }).mockResolvedValueOnce('extracted');
+    await expect(queue.enqueue({
+      tier: 'light', model: 'gemini-3.5-flash-lite', fallbackModel: 'gemini-2.5-flash', execute,
+    })).resolves.toBe('extracted');
+    expect(execute.mock.calls).toEqual([['gemini-3.5-flash-lite'], ['gemini-2.5-flash']]);
+  });
+
   it('enforces daily budget limits and triggers deterministic fallback', async () => {
     const today = new Date().toISOString().slice(0, 10);
     // Simulate daily limit of 2 reached for light model

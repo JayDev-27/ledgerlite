@@ -130,3 +130,13 @@ describe('Long-Term Memory Retrieval & Scoring System', () => {
     expect(formatted).toContain('2. [INCOME] Monthly take-home salary is ₹1,65,000 credited on the 1st');
   });
 });
+
+it('omits unrelated and pending memories even when the repository over-returns records', async () => {
+  const repository = {
+    getMemoryItems: async () => [
+      { id: 'approved', text: 'Prefer limited travel spending', kind: 'preference', approvedAt: '2026-11-01' },
+      { id: 'pending', text: 'This quarter I spent on groceries', kind: 'note', approvedAt: null },
+    ],
+  } as unknown as Repository;
+  expect(await retrieveRelevantMemories('How much for groceries?', repository)).toEqual([]);
+});

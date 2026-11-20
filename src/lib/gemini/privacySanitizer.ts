@@ -15,7 +15,7 @@ export function sanitizeSensitiveText(text: string): string {
     // Card numbers (13-19 digits, with spaces or hyphens)
     .replace(/\b(?:\d[ -]*?){13,19}\b/g, '[CARD REDACTED]')
     // Receipt / Invoice / Transaction IDs (run before phone numbers so ref #TXN-1234567890 isn't mistaken for a phone number)
-    .replace(/\b(?:receipt|inv|invoice|txn|txnid|ref)\s*[:#-]?\s*[A-Za-z0-9_\-]{4,}\b/gi, '[RECEIPT REDACTED]')
+    .replace(/\b(?:receipt|inv|invoice|txn|txnid|ref)\s*[:#-]?\s*(?=[A-Za-z0-9_\-]*\d)[A-Za-z0-9_\-]{4,}\b/gi, '[RECEIPT REDACTED]')
     // Bank account numbers: e.g. A/C 123456789012, Acc: 987654321
     .replace(/\b(?:a\/?c|acct|acc|account|no\.?)\s*[:#-]?\s*\d{4,}\b/gi, '[ACCOUNT REDACTED]')
     // UPI IDs: e.g. someone@okhdfcbank

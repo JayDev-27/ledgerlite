@@ -9,7 +9,7 @@ import {
   differenceInCalendarDays,
   getDay,
 } from 'date-fns';
-import { parseReferenceDate } from '@/lib/periods/financialYear';
+import { parseReferenceDate, todayInIndia } from '@/lib/periods/financialYear';
 import { repository } from '@/data/repository';
 import { Transaction, Category, Budget, PaymentMethod } from '@/types';
 import {
@@ -48,8 +48,7 @@ export const DashboardPage: React.FC = () => {
   const [periodType, setPeriodType] = useState<PeriodType>('month');
   const [compareWithPrior, setCompareWithPrior] = useState(true);
 
-  // Default benchmark date in November 2026 within seeded data
-  const [referenceDate, setReferenceDate] = useState<string>('2026-11-15');
+  const [referenceDate, setReferenceDate] = useState(todayInIndia);
   const [customRange, setCustomRange] = useState<{ start?: string; end?: string }>({});
 
   const [categories, setCategories] = useState<Category[]>([]);

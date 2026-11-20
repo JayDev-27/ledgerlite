@@ -12,7 +12,7 @@ import {
   subMonths,
   getDaysInMonth,
 } from 'date-fns';
-import { parseReferenceDate } from '@/lib/periods/financialYear';
+import { parseReferenceDate, todayInIndia } from '@/lib/periods/financialYear';
 import { repository } from '@/data/repository';
 import { Budget, Category, Transaction } from '@/types';
 import {
@@ -37,7 +37,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 export const BudgetsPage: React.FC = () => {
   const { settings } = useSettingsStore();
   const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState('2026-11');
+  const [selectedMonth, setSelectedMonth] = useState(() => todayInIndia().slice(0, 7));
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [budget, setBudget] = useState<Budget | undefined>();
   // False when the selected month has no saved budget: show a set-up state, not invented numbers.
@@ -64,16 +64,8 @@ export const BudgetsPage: React.FC = () => {
         repository.getCategories(),
       ]);
 
-      const months = Array.from(new Set(allBudgets.map((b) => b.month))).sort();
-      // Ensure seeded months are present
-      const seededMonths = ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11'];
-      const combinedMonths = Array.from(new Set([...months, ...seededMonths])).sort();
-      setAvailableMonths(combinedMonths);
+      setAvailableMonths([...new Set([...allBudgets.map((budget) => budget.month), todayInIndia().slice(0, 7)])].sort());
       setCategories(cats);
-
-      // Default to latest available month
-      const initialMonth = combinedMonths.includes('2026-11') ? '2026-11' : combinedMonths[combinedMonths.length - 1] || '2026-11';
-      setSelectedMonth(initialMonth);
     } catch (err) {
       console.error('Failed to load budget initial data:', err);
     } finally {
@@ -136,8 +128,7 @@ export const BudgetsPage: React.FC = () => {
         categoryRollovers = rolloverComp.categoryRollovers;
       }
 
-      // Benchmark date for pace tracking (simulated active date 2026-11-15)
-      const benchmarkDate = '2026-11-15';
+      const benchmarkDate = todayInIndia();
       const computedMetrics = calculateBudgetMetrics(
         effectiveBudget,
         txs,

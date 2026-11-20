@@ -39,6 +39,7 @@ describe('Privacy Sanitizer — Free-Tier Data Redaction', () => {
     const sanitized = sanitizeSensitiveText(raw);
     expect(sanitized).toContain('[RECEIPT REDACTED]');
     expect(sanitized).not.toContain('TXN-9847194719');
+    expect(sanitizeSensitiveText('This invoice shows an unpaid bill.')).toBe('This invoice shows an unpaid bill.');
   });
 
   it('strips personal notes and redacts sensitive merchant identifiers when privacyMode is active', () => {

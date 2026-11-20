@@ -10,6 +10,10 @@ export interface FinancialYearInfo {
   longLabel: string; // "FY 2026–2027"
 }
 
+export function todayInIndia() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', dateStyle: 'short' }).format(new Date());
+}
+
 export function parseReferenceDate(ref?: Date | string): Date {
   if (!ref) return new Date();
   if (typeof ref === 'string') {

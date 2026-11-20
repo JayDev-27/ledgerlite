@@ -288,97 +288,130 @@ describe('Agentic Chat Assistant Loop — Max 2 Tool Rounds & Code Computation',
     expect(result.text).toContain('₹40,000');
   });
 
-  it('includes multimodal attachment inlineData in user turn contents and handles import_extracted_transactions', async () => {
+  it('sends a consented receipt image for typed extraction and proposes the paid total', async () => {
     mockGenerateContent.mockResolvedValueOnce({
-      functionCalls: [
-        {
-          name: 'import_extracted_transactions',
-          args: {
-            transactions: [
-              {
-                date: '2026-11-14',
-                amount: 720,
-                merchant: 'Swiggy Instamart',
-                category: 'Groceries',
-                paymentMethod: 'upi',
-              },
-            ],
-          },
-        },
-      ],
-      candidates: [
-        {
-          content: {
-            role: 'model',
-            parts: [
-              {
-                functionCall: {
-                  name: 'import_extracted_transactions',
-                  args: {
-                    transactions: [
-                      {
-                        date: '2026-11-14',
-                        amount: 720,
-                        merchant: 'Swiggy Instamart',
-                        category: 'Groceries',
-                        paymentMethod: 'upi',
-                      },
-                    ],
-                  },
-                },
-              },
-            ],
-          },
-        },
-      ],
+      text: JSON.stringify({
+        documentType: 'receipt',
+        transactions: [{ date: '2026-11-14', amount: 720, merchant: 'Swiggy Instamart',
+          currency: 'INR', evidence: 'paid_receipt', kind: 'expense', category: 'Groceries', paymentMethod: 'upi' }],
+      }),
     });
 
-    mockGenerateContent.mockResolvedValueOnce({
-      text: 'I detected 1 transaction of ₹720 from your receipt image at Swiggy Instamart. Click "Add to Transactions" to add it to your ledger.',
-      functionCalls: undefined,
-    });
+    const data = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const result = await runAgentTurn({
+      userQuery: 'Analyze this receipt and add any transactions',
+      attachments: [{ name: 'receipt.png', mimeType: 'image/png', data: 'data:image/png;base64,' + data }],
+      apiKey: 'test-key',
+      allowCloudAttachments: true,
+    }, mockRepo, mockQueue);
 
-    const result = await runAgentTurn(
-      {
-        userQuery: 'Analyze this receipt and add any transactions',
-        attachments: [
-          {
-            name: 'receipt.png',
-            mimeType: 'image/png',
-            data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-          },
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    expect(mockGenerateContent.mock.calls[0]?.[0].contents[0].parts[1].inlineData).toEqual({ mimeType: 'image/png', data });
+    expect(result.extractedTransactions).toMatchObject([
+      { merchant: 'Swiggy Instamart', amount: 720, categoryId: 'cat_groceries', direction: 'debit', importBlockedReason: undefined },
+    ]);
+    expect(result.text).toContain('1 eligible to add as spending');
+  });
+});
+
+describe('Statement uploads and spending review', () => {
+  const mixedStatement = [
+    'Example checking account,INR',
+    'Date,Description,Debit,Credit,Balance',
+    '2026-11-01,Opening balance,,,500',
+    '2026-11-02,Salary credit Test Employer,,45000,45500',
+    '2026-11-03,Fresh Foods,1250.20,,44249.80',
+    '2026-11-04,Merchant refund,,250.20,44500',
+    '2026-11-05,Credit card bill payment,2000,,42500',
+    '2026-11-06,Transfer to own savings,8000,,34500',
+    '2026-11-09,ATM withdrawal,1000,,33500',
+    '2026-11-10,Coffee,90,,33410',
+    '2026-11-10,Coffee,90,,33320',
+    ',Total,12430.20,45250.20,',
+  ].join('\n');
+  const attachment = (text: string, mimeType = 'text/csv') => ({
+    name: mimeType === 'text/csv' ? 'statement.csv' : 'statement.pdf',
+    mimeType,
+    data: Buffer.from(text).toString('base64'),
+  });
+  const repo = {
+    getCategories: vi.fn(async () => [{ id: 'cat_misc', name: 'Miscellaneous' }]),
+    getAiUsageToday: vi.fn(async () => []),
+    incrementAiUsage: vi.fn(async () => 1),
+    getSetting: vi.fn(async () => undefined),
+  } as unknown as Repository;
+  const queue = new RequestQueue({ repo, lightRpmLimit: 100 });
+
+  beforeEach(() => mockGenerateContent.mockReset());
+
+  it('reads a mixed statement locally, without a key, and preserves identical genuine purchases', async () => {
+    const file = attachment(mixedStatement);
+    const options = { userQuery: 'Review my statement', apiKey: '', attachments: [file, file] };
+    const result = await runAgentTurn(options, repo, queue);
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    expect(result.extractedTransactions.map(({ kind }) => kind)).toEqual([
+      'income', 'expense', 'refund', 'card_payment', 'transfer', 'cash_withdrawal', 'expense', 'expense',
+    ]);
+    const expenses = result.extractedTransactions.filter((row) => !row.importBlockedReason);
+    expect(expenses.map(({ amount }) => amount)).toEqual([1250.2, 90, 90]);
+    expect(new Set(expenses.map(({ id }) => id)).size).toBe(3);
+    const retry = await runAgentTurn(options, repo, queue);
+    expect(retry.extractedTransactions.map(({ id }) => id))
+      .toEqual(result.extractedTransactions.map(({ id }) => id));
+  });
+
+  it('blocks full attachments until consent, and sends only the current file after opt-in', async () => {
+    const file = attachment('synthetic data', 'application/pdf');
+    const options = { userQuery: 'Review this PDF', apiKey: 'test-key', attachments: [file] };
+    await expect(runAgentTurn(options, repo, queue)).resolves.toMatchObject({ modelUsed: 'local', extractedTransactions: [] });
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        documentType: 'bank_statement',
+        transactions: [
+          { date: '2026-11-03', merchant: 'Food store', amount: 100, currency: 'INR',
+            kind: 'expense', evidence: 'bank_debit', balanceBefore: 1000, balanceAfter: 900 },
+          { date: '2026-11-03', merchant: 'Incoming wire', amount: 500, currency: 'INR',
+            kind: 'expense', evidence: 'bank_debit', balanceBefore: 900, balanceAfter: 1400 },
         ],
-        apiKey: 'test-key',
-      },
-      mockRepo,
-      mockQueue
-    );
+      }),
+    });
+    const result = await runAgentTurn({ ...options, allowCloudAttachments: true }, repo, queue);
+    expect(result.extractedTransactions.map(({ direction }) => direction)).toEqual(['debit', 'unknown']);
+    expect(result.extractedTransactions.filter((row) => !row.importBlockedReason)).toHaveLength(1);
+    const request = mockGenerateContent.mock.calls[0]?.[0];
+    expect(request.contents[0].parts[1].inlineData).toEqual({ mimeType: 'application/pdf', data: file.data });
+    expect(request.config.tools).toBeUndefined();
+  });
 
-    expect(mockGenerateContent).toHaveBeenCalledTimes(2);
-
-    // Verify first call passed inlineData in user turn
-    const firstCallArgs = mockGenerateContent.mock.calls[0]?.[0];
-    const userTurn = firstCallArgs?.contents.find((c: { role: string }) => c.role === 'user');
-    expect(userTurn).toBeDefined();
-    expect(userTurn.parts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          inlineData: {
-            mimeType: 'image/png',
-            data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-          },
-        }),
-        expect.objectContaining({
-          text: 'Analyze this receipt and add any transactions',
-        }),
-      ])
-    );
-
-    // Verify extractedTransactions are returned in AgentTurnResult
-    expect(result.extractedTransactions.length).toBe(1);
-    expect(result.extractedTransactions[0]?.merchant).toBe('Swiggy Instamart');
-    expect(result.extractedTransactions[0]?.amount).toBe(720);
-    expect(result.extractedTransactions[0]?.categoryId).toBe('cat_groceries');
-    expect(result.text).toContain('₹720');
+  it('excludes malformed, summary, unknown, and foreign-currency rows from expense persistence', async () => {
+    const { reviewTransactions, saveReviewedExpense } = await import('@/lib/gemini/agent/transactionReview');
+    const categories = [{ id: 'cat_misc', name: 'Miscellaneous', type: 'want' as const, color: '', icon: '' }];
+    const base = { date: '2026-11-03', merchant: 'Food store', amount: 100, currency: 'INR', kind: 'expense', evidence: 'bank_debit' };
+    const rows = reviewTransactions([
+      base, { ...base, merchant: 'Salary credit Test Co' }, { ...base, evidence: 'bank_credit' },
+      { ...base, amount: -100 }, { ...base, amount: Infinity }, { ...base, date: '2026-02-30' },
+      { ...base, currency: 'USD' }, { ...base, evidence: 'explicit_expense' }, { ...base, merchant: 'Closing balance' },
+      { ...base, merchant: 'ACH DEBIT AMEX EPAYMENT' },
+    ], categories, true, true);
+    expect(rows).toHaveLength(7);
+    expect(rows[rows.length - 1]?.kind).toBe('card_payment');
+    expect(rows.filter((row) => !row.importBlockedReason)).toHaveLength(1);
+    const stored = new Map();
+    const write = vi.fn(async (tx) => {
+      if (stored.has(tx.id)) throw new Error('Duplicate primary key');
+      stored.set(tx.id, tx);
+      return tx;
+    });
+    const localRepo = {
+      getTransaction: async (id: string) => stored.get(id),
+      getCategories: async () => categories,
+      addTransaction: write,
+    } as unknown as Repository;
+    for (const row of rows.slice(1)) await expect(saveReviewedExpense(row, localRepo)).rejects.toThrow();
+    await Promise.all([saveReviewedExpense(rows[0]!, localRepo), saveReviewedExpense(rows[0]!, localRepo)]);
+    await saveReviewedExpense(rows[0]!, localRepo);
+    expect(stored.size).toBe(1);
+    expect(stored.get(rows[0]!.id)).toMatchObject({ amount: 100, currency: 'INR', categoryId: 'cat_misc' });
   });
 });

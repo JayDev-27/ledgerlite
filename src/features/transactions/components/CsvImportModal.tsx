@@ -15,11 +15,11 @@ import {
   detectColumnMapping,
   detectDuplicates,
   normalizePaymentMethod,
-  parseDateString,
-  parseAmount,
   ColumnMapping,
   PreparedImportTransaction,
 } from '@/lib/csv';
+import { hasStatementDirections, isLedgerLiteExpenseExport, parseStatementCsv, readStatementRows, statementHeaders } from '@/lib/csv/statement';
+import { classifyStatementRow, isCalendarDate, isStatementSummary } from '@/lib/gemini/agent/transactionReview';
 import { repository } from '@/data/repository';
 import { batchClassifyTransactions } from '@/lib/categorizer';
 import { formatCurrency, formatRelativeDate } from '@/lib/formatters';
@@ -42,6 +42,11 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
   const [fileName, setFileName] = useState('');
   const [headers, setHeaders] = useState<string[]>([]);
   const [rawRows, setRawRows] = useState<string[][]>([]);
+  const [preamble, setPreamble] = useState('');
+  const [assumeInr, setAssumeInr] = useState(false);
+  const [confirmedExpenseFile, setConfirmedExpenseFile] = useState(false);
+  const [skippedRows, setSkippedRows] = useState(0);
+  const [dateOrder, setDateOrder] = useState('');
   const [mapping, setMapping] = useState<ColumnMapping>({
     date: null,
     amount: null,
@@ -54,13 +59,16 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
 
-  if (!isOpen) return null;
-
   const resetState = () => {
     setStep('upload');
     setFileName('');
     setHeaders([]);
     setRawRows([]);
+    setPreamble('');
+    setAssumeInr(false);
+    setConfirmedExpenseFile(false);
+    setSkippedRows(0);
+    setDateOrder('');
     setPreparedItems([]);
     setIsProcessing(false);
   };
@@ -71,6 +79,11 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
   };
 
   const modalRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose: handleClose });
+  if (!isOpen) return null;
+
+  const directionColumns = statementHeaders(headers);
+  const hasSplitAmounts = directionColumns.debit >= 0 || directionColumns.credit >= 0;
+  const isStatement = hasStatementDirections(headers, rawRows, mapping.amount ?? undefined);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -80,7 +93,11 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      const { headers: parsedHeaders, rows } = parseCsv(text);
+      const statement = parseStatementCsv(text);
+      const { headers: parsedHeaders, rows } = statement ? { headers: statement.headers, rows: statement.body } : parseCsv(text);
+      setPreamble(statement?.preamble ?? '');
+      setAssumeInr(false);
+      setConfirmedExpenseFile(isLedgerLiteExpenseExport(parsedHeaders));
       if (parsedHeaders.length === 0 || rows.length === 0) {
         alert('Could not parse any rows from this CSV file.');
         return;
@@ -95,27 +112,33 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
   };
 
   const handleProcessMapping = async () => {
-    if (mapping.date === null || mapping.amount === null || mapping.merchant === null) {
+    if (mapping.date === null || (!hasSplitAmounts && mapping.amount === null) || mapping.merchant === null) {
       alert('Please map Date, Amount, and Merchant columns before proceeding.');
       return;
     }
 
     setIsProcessing(true);
     try {
-      // Build raw items
-      const initialItems: PreparedImportTransaction[] = rawRows.map((row) => {
-        const rawDate = mapping.date !== null ? row[mapping.date] || '' : '';
-        const rawAmount = mapping.amount !== null ? row[mapping.amount] || '' : '';
+      const statementRows = readStatementRows(headers, rawRows, {
+        ...directionColumns, date: mapping.date, merchant: mapping.merchant, amount: mapping.amount ?? -1,
+      }, preamble, { dateOrder, currency: assumeInr ? 'INR' : undefined, expensesOnly: confirmedExpenseFile });
+      const validItems = rawRows.flatMap((row, index): PreparedImportTransaction[] => {
         const rawMerchant = mapping.merchant !== null ? row[mapping.merchant] || '' : '';
         const rawPayment = mapping.paymentMethod !== null ? row[mapping.paymentMethod] || '' : '';
         const rawNotes = mapping.notes !== null ? row[mapping.notes] || '' : '';
         const rawCat = mapping.category !== null ? row[mapping.category] || '' : '';
 
-        const dateIso = parseDateString(rawDate);
-        const amountNum = parseAmount(rawAmount);
+        const statement = statementRows[index];
+        const dateIso = statement?.date;
+        const amountNum = statement?.amount;
+        const direction = statement?.direction;
+        const currency = statement?.currency;
+        if (!dateIso || !isCalendarDate(dateIso) || !amountNum || amountNum <= 0 ||
+            direction !== 'debit' || currency !== 'INR' || !rawMerchant || isStatementSummary(rawMerchant) ||
+            classifyStatementRow(rawMerchant, direction) !== 'expense') return [];
         const payment = normalizePaymentMethod(rawPayment);
 
-        return {
+        return [{
           date: dateIso,
           amount: amountNum,
           merchant: rawMerchant.trim() || 'Unknown Payee',
@@ -124,11 +147,9 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
           notes: rawNotes.trim() || undefined,
           isDuplicate: false,
           selectedForImport: true,
-        };
+        }];
       });
-
-      // Filter out zero amount or invalid items
-      const validItems = initialItems.filter((item) => item.amount > 0);
+      setSkippedRows(rawRows.length - validItems.length);
 
       // Auto-categorize via 3-tier pipeline
       const classificationInputs = validItems.map((i) => ({
@@ -314,7 +335,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
                 {(
                   [
                     { field: 'date', label: 'Date Column *', required: true },
-                    { field: 'amount', label: 'Amount Column *', required: true },
+                    { field: 'amount', label: hasSplitAmounts ? 'Amount Column (uses Debit and Credit)' : 'Amount Column *', required: true },
                     { field: 'merchant', label: 'Merchant / Description *', required: true },
                     { field: 'category', label: 'Category Column (Optional)', required: false },
                     { field: 'paymentMethod', label: 'Payment Method (Optional)', required: false },
@@ -346,6 +367,27 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
                 ))}
               </div>
 
+              <div className="space-y-2 text-xs">
+                {!isStatement && (
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={confirmedExpenseFile} onChange={(e) => setConfirmedExpenseFile(e.target.checked)} />
+                    This file contains expenses only
+                  </label>
+                )}
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={assumeInr} onChange={(e) => setAssumeInr(e.target.checked)} />
+                  Amounts without a currency label are in INR
+                </label>
+                <label className="flex items-center gap-2">
+                  Format for dates like 01/02/2026
+                  <select value={dateOrder} onChange={(e) => setDateOrder(e.target.value)} className="rounded border bg-transparent p-1">
+                    <option value="">Detect from file</option>
+                    <option value="DD/MM/YYYY">Day / Month / Year</option>
+                    <option value="MM/DD/YYYY">Month / Day / Year</option>
+                  </select>
+                </label>
+              </div>
+
               <div className="flex justify-end pt-4">
                 <button
                   onClick={handleProcessMapping}
@@ -371,7 +413,8 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
                     <CheckCircle className="w-4 h-4 text-status-success flex-shrink-0" />
                   )}
                   <span>
-                    Found <strong className="font-semibold">{preparedItems.length}</strong> transactions.{' '}
+                    Found <strong className="font-semibold">{preparedItems.length}</strong> eligible expenses.{' '}
+                    {skippedRows > 0 && <span>{skippedRows} incoming, non-expense, or unverified rows skipped.{' '}</span>}
                     {duplicateCount > 0 ? (
                       <span className="text-amber-600 dark:text-amber-400 font-semibold">
                         {duplicateCount} potential duplicates flagged within +/- 1 day.

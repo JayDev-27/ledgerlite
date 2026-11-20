@@ -147,7 +147,7 @@ export function tokenize(text: string): string[] {
 export function scoreMemoryItem(query: string, memory: MemoryItem): number {
   const queryTokens = tokenize(query);
   if (queryTokens.length === 0) {
-    return 0.1; // Base small score if query has only stop words
+    return 0;
   }
 
   const memoryTokens = tokenize(memory.text);
@@ -164,13 +164,13 @@ export function scoreMemoryItem(query: string, memory: MemoryItem): number {
   // 2. Token overlap score
   const memoryTokenSet = new Set(memoryTokens);
   let matches = 0;
-  for (const token of queryTokens) {
+  for (const token of new Set(queryTokens)) {
     if (memoryTokenSet.has(token)) {
       matches += 1;
     } else {
       // Substring match inside token (e.g. "laptop" in "laptops")
       for (const mToken of memoryTokens) {
-        if (mToken.includes(token) || token.includes(mToken)) {
+        if (Math.min(token.length, mToken.length) >= 4 && (mToken.startsWith(token) || token.startsWith(mToken))) {
           matches += 0.5;
           break;
         }
@@ -191,7 +191,7 @@ export function scoreMemoryItem(query: string, memory: MemoryItem): number {
 
   const relevantWords = kindBonusWords[memory.kind] || [];
   for (const word of relevantWords) {
-    if (queryLower.includes(word)) {
+    if (queryTokens.includes(word)) {
       score += 2.0;
       break;
     }
@@ -213,10 +213,9 @@ export async function retrieveRelevantMemories(
     return [];
   }
 
-  const scored = approvedMemories.map((item) => ({
-    item,
-    score: scoreMemoryItem(query, item),
-  }));
+  const scored = approvedMemories.filter((item) => item.approvedAt)
+    .map((item) => ({ item, score: scoreMemoryItem(query, item) }))
+    .filter(({ score }) => score > 0);
 
   // Sort descending by score, tiebreak by createdAt desc
   scored.sort((a, b) => {

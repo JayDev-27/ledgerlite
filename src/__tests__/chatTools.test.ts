@@ -367,30 +367,36 @@ describe('Chat Agent Tools — Local Deterministic Database Reasoning', () => {
       );
     });
 
-    it('defaults month to 2026-11 and calculates totalLimit from category limits when 0', async () => {
-      const res = (await executeTool(
-        'set_budget',
-        {
-          totalLimit: 0,
-          categoryLimits: {
-            'Dining Out': 7000,
-            'Investments': 13000,
+    it('defaults to the current month in India and derives the total from category limits when 0', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-10-31T19:00:00Z'));
+      try {
+        const res = (await executeTool(
+          'set_budget',
+          {
+            totalLimit: 0,
+            categoryLimits: {
+              'Dining Out': 7000,
+              'Investments': 13000,
+            },
           },
-        },
-        mockRepo
-      )) as {
-        success: boolean;
-        month: string;
-        totalLimit: number;
-        categoryLimits: Record<string, number>;
-      };
+          mockRepo
+        )) as {
+          success: boolean;
+          month: string;
+          totalLimit: number;
+          categoryLimits: Record<string, number>;
+        };
 
-      expect(res.success).toBe(true);
-      expect(res.month).toBe('2026-11');
-      // Existing groceries: 8000 (from previous test or mock), dining: 7000, invest: 13000 -> 28000
-      expect(res.categoryLimits.cat_dining).toBe(7000);
-      expect(res.categoryLimits.cat_invest).toBe(13000);
-      expect(res.totalLimit).toBeGreaterThanOrEqual(20000);
+        expect(res.success).toBe(true);
+        expect(res.month).toBe('2026-11');
+        // Existing groceries: 8000 (from previous test or mock), dining: 7000, invest: 13000 -> 28000
+        expect(res.categoryLimits.cat_dining).toBe(7000);
+        expect(res.categoryLimits.cat_invest).toBe(13000);
+        expect(res.totalLimit).toBeGreaterThanOrEqual(20000);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

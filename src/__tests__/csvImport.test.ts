@@ -220,3 +220,40 @@ describe('CSV Import & Duplicate Detection Engine', () => {
     });
   });
 });
+
+describe('Statement direction and currency', () => {
+  it('reads DR and CR indicators and preserves original dates and currencies', async () => {
+    const { parseStatementCsv } = await import('@/lib/csv/statement');
+    const result = parseStatementCsv([
+      'Txn Date,Narration,Amount,Currency',
+      '13/11/2026,Salary,50000 CR,INR',
+      '14/11/2026,Store,250.40 DR,INR',
+      '15/11/2026,Foreign store,10 DR,USD',
+    ].join('\n'));
+    expect(result?.rows).toMatchObject([
+      { date: '2026-11-13', amount: 50000, direction: 'credit', currency: 'INR' },
+      { date: '2026-11-14', amount: 250.4, direction: 'debit', currency: 'INR' },
+      { date: '2026-11-15', amount: 10, direction: 'debit', currency: 'USD' },
+    ]);
+  });
+
+  it('detects the inverted sign convention of card exports using the repayment row', async () => {
+    const { parseStatementCsv } = await import('@/lib/csv/statement');
+    const result = parseStatementCsv([
+      'Date,Description,Amount',
+      '2026-11-01,Store,500',
+      '2026-11-02,Payment Thank You,-500',
+    ].join('\n'));
+    expect(result?.rows.map(({ direction, accountKind }) => [direction, accountKind]))
+      .toEqual([['debit', 'card'], ['credit', 'card']]);
+  });
+
+  it('keeps conflicting columns and unknown sign and date conventions out of automatic import', async () => {
+    const { parseStatementCsv } = await import('@/lib/csv/statement');
+    const dual = parseStatementCsv('Date,Description,Debit,Credit\n2026-11-04,Unclear,100,100');
+    expect(dual?.rows[0]).toMatchObject({ direction: 'unknown' });
+    const signed = parseStatementCsv('Date,Description,Amount,Balance\n01/02/2026,One,100,100\n02/02/2026,Two,-25,75');
+    expect(signed?.rows.map(({ date, direction }) => [date, direction]))
+      .toEqual([['', 'unknown'], ['', 'unknown']]);
+  });
+});

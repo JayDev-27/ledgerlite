@@ -19,6 +19,7 @@ import { secretsAdapter } from '@/lib/secrets';
 import { useSettingsStore } from '@/store/settingsStore';
 import { requestQueue, type TodayUsageStats } from '@/lib/gemini/requestQueue';
 import { runAgentTurn } from '@/lib/gemini/agent/agentLoop';
+import { saveReviewedExpense, transactionKindLabels } from '@/lib/gemini/agent/transactionReview';
 import type {
   ChatMessage,
   MemoryProposalRecord,
@@ -33,7 +34,6 @@ interface ComposerAttachment {
   mimeType: string;
   data: string; // base64 data URL
   previewUrl?: string;
-  size: number;
 }
 
 const SUGGESTED_PROMPTS = [
@@ -156,6 +156,10 @@ export const AssistantPage: React.FC = () => {
   const [proposalStatuses, setProposalStatuses] = useState<Record<string, 'pending' | 'approved' | 'rejected'>>({});
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
+  const [allowCloudAttachments, setAllowCloudAttachments] = useState(false);
+  const [readingFiles, setReadingFiles] = useState(false);
+  const [attachmentError, setAttachmentError] = useState('');
+  const importsInProgress = useRef(new Set<string>());
   const [txStatuses, setTxStatuses] = useState<Record<string, 'pending' | 'saving' | 'added' | 'error'>>({});
   const [isImportingBatch, setIsImportingBatch] = useState(false);
   const streamIntervalRef = useRef<number | null>(null);
@@ -221,135 +225,63 @@ export const AssistantPage: React.FC = () => {
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [inputMessage]);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (!files.length) return;
 
-    const validMimes = [
-      'image/png',
-      'image/jpeg',
-      'image/webp',
-      'application/pdf',
-      'text/csv',
-      'text/plain',
-    ];
-
-    Array.from(files).forEach((file) => {
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      const isAccepted =
-        validMimes.includes(file.type) ||
-        (ext === 'csv' && (file.type.includes('csv') || file.type.includes('text') || !file.type)) ||
-        (ext === 'pdf' && (file.type.includes('pdf') || !file.type)) ||
-        ['png', 'jpg', 'jpeg', 'webp', 'txt'].includes(ext || '');
-
-      if (!isAccepted) {
-        alert(`File format not supported: ${file.name}. Please upload PDF, CSV, TXT, PNG, JPEG, or WebP.`);
-        return;
+    const mimeByExtension: Record<string, string> = {
+      csv: 'text/csv', txt: 'text/plain', pdf: 'application/pdf',
+      png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp',
+    };
+    setAllowCloudAttachments(false);
+    setReadingFiles(true);
+    setAttachmentError('');
+    const results = await Promise.allSettled(files.map(async (file) => {
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+      const mimeType = mimeByExtension[ext] ?? file.type;
+      if (!Object.values(mimeByExtension).includes(mimeType)) {
+        throw new Error(`${file.name} is unsupported. Choose a PDF, CSV, TXT, PNG, JPEG, or WebP file.`);
+      }
+      if (!file.size || file.size > 10 * 1024 * 1024) {
+        throw new Error(`Choose a nonempty file up to 10 MB for ${file.name}.`);
       }
 
-      if (file.size > 10 * 1024 * 1024) {
-        alert(`File exceeds 10MB limit: ${file.name}`);
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        const resultStr = reader.result as string;
-        const isImage = file.type.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp'].includes(ext || '');
-        let mimeType = file.type;
-        if (!mimeType) {
-          if (ext === 'csv') mimeType = 'text/csv';
-          else if (ext === 'pdf') mimeType = 'application/pdf';
-          else if (ext === 'txt') mimeType = 'text/plain';
-          else if (ext === 'png') mimeType = 'image/png';
-          else if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
-          else if (ext === 'webp') mimeType = 'image/webp';
-        }
-
-        setAttachments((prev) => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            name: file.name,
-            mimeType: mimeType || 'application/octet-stream',
-            data: resultStr,
-            previewUrl: isImage ? resultStr : undefined,
-            size: file.size,
-          },
-        ]);
+      const data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = reader.onabort = () => reject(new Error(`Could not read ${file.name}.`));
+        reader.readAsDataURL(file);
+      });
+      return {
+        id: crypto.randomUUID(), name: file.name, mimeType, data,
+        previewUrl: mimeType.startsWith('image/') ? data : undefined,
       };
-      reader.readAsDataURL(file);
-    });
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    }));
+    setAttachments((prev) => [...prev, ...results.flatMap((result) => result.status === 'fulfilled' ? [result.value] : [])]);
+    setAttachmentError(results.flatMap((result) => result.status === 'rejected' ? [String(result.reason.message)] : []).join(' '));
+    setReadingFiles(false);
   };
 
   const handleAddTransaction = async (tx: ExtractedTransactionProposal) => {
+    if (txStatuses[tx.id] === 'added' || importsInProgress.current.has(tx.id)) return;
+    importsInProgress.current.add(tx.id);
     setTxStatuses((prev) => ({ ...prev, [tx.id]: 'saving' }));
     try {
-      const categories = await repository.getCategories();
-      let categoryId = tx.categoryId;
-      if (!categoryId || !categories.some((c) => c.id === categoryId)) {
-        const match = categories.find(
-          (c) => c.name.toLowerCase() === (tx.category || '').toLowerCase()
-        );
-        categoryId = match?.id || categories[0]?.id || 'cat_other';
-      }
-
-      await repository.addTransaction({
-        amount: tx.amount,
-        currency: 'INR',
-        date: tx.date,
-        merchant: tx.merchant,
-        categoryId,
-        paymentMethod: tx.paymentMethod || 'upi',
-        notes: tx.notes || 'Extracted via Assistant',
-        tags: ['ai-imported'],
-        source: 'ai',
-        confidence: tx.confidence ?? 0.95,
-      });
-
+      await saveReviewedExpense(tx, repository);
       setTxStatuses((prev) => ({ ...prev, [tx.id]: 'added' }));
     } catch (err) {
       console.error('Failed to add transaction:', err);
       setTxStatuses((prev) => ({ ...prev, [tx.id]: 'error' }));
+    } finally {
+      importsInProgress.current.delete(tx.id);
     }
   };
 
   const handleImportAll = async (txs: ExtractedTransactionProposal[]) => {
     setIsImportingBatch(true);
     try {
-      const categories = await repository.getCategories();
-      for (const tx of txs) {
-        if (txStatuses[tx.id] === 'added') continue;
-        setTxStatuses((prev) => ({ ...prev, [tx.id]: 'saving' }));
-        let categoryId = tx.categoryId;
-        if (!categoryId || !categories.some((c) => c.id === categoryId)) {
-          const match = categories.find(
-            (c) => c.name.toLowerCase() === (tx.category || '').toLowerCase()
-          );
-          categoryId = match?.id || categories[0]?.id || 'cat_other';
-        }
-
-        await repository.addTransaction({
-          amount: tx.amount,
-          currency: 'INR',
-          date: tx.date,
-          merchant: tx.merchant,
-          categoryId,
-          paymentMethod: tx.paymentMethod || 'upi',
-          notes: tx.notes || 'Extracted via Assistant',
-          tags: ['ai-imported'],
-          source: 'ai',
-          confidence: tx.confidence ?? 0.95,
-        });
-
-        setTxStatuses((prev) => ({ ...prev, [tx.id]: 'added' }));
-      }
-    } catch (err) {
-      console.error('Failed batch import:', err);
+      for (const tx of txs) await handleAddTransaction(tx);
     } finally {
       setIsImportingBatch(false);
     }
@@ -357,7 +289,7 @@ export const AssistantPage: React.FC = () => {
 
   const handleSend = async (userText: string) => {
     const trimmed = userText.trim();
-    if ((!trimmed && attachments.length === 0) || isLoading) return;
+    if ((!trimmed && attachments.length === 0) || isLoading || readingFiles) return;
 
     const currentAttachments = [...attachments];
     const userMsg: ChatMessage = {
@@ -374,12 +306,14 @@ export const AssistantPage: React.FC = () => {
     setMessages((prev) => [...prev, userMsg]);
     setInputMessage('');
     setAttachments([]);
+    setAllowCloudAttachments(false);
+    setAttachmentError('');
     setIsLoading(true);
     setTimeout(() => scrollToBottom('smooth'), 50);
 
     try {
       const apiKey = (await secretsAdapter.getApiKey()) || settings.geminiApiKey || '';
-      if (!apiKey) {
+      if (!apiKey && currentAttachments.length === 0) {
         setMessages((prev) => [
           ...prev,
           { id: crypto.randomUUID(), role: 'assistant', text: MISSING_KEY, timestamp: new Date().toISOString() },
@@ -387,7 +321,12 @@ export const AssistantPage: React.FC = () => {
         return;
       }
 
-      const history = messages.slice(-8).map((m) => ({ role: m.role, text: m.text, attachments: m.attachments }));
+      const history = messages.filter((m) => m.text !== MISSING_KEY).slice(-8).map((m, index, recent) => ({
+        role: m.role,
+        text: (m.role === 'assistant' && recent[index - 1]?.attachments?.length
+          ? m.text.replace(/^### .*$/gm, '') : m.text) || 'I uploaded a document for review.',
+        extractedTransactions: m.extractedTransactions,
+      }));
       const queryText =
         trimmed ||
         (currentAttachments.length > 0
@@ -406,6 +345,7 @@ export const AssistantPage: React.FC = () => {
           apiKey,
           model: settings.geminiLightModel || 'gemini-3.5-flash-lite',
           privacyMode: settings.privacyMode,
+          allowCloudAttachments,
         },
         repository
       );
@@ -429,36 +369,16 @@ export const AssistantPage: React.FC = () => {
       }
 
       const assistantId = crypto.randomUUID();
-      const fullText = result.text || '';
+      const fullText = result.text;
+      const showImmediately = currentAttachments.length > 0 || !fullText;
 
-      // Stop thinking indicator as soon as synthesized response arrives
       setIsLoading(false);
-
-      if (!fullText) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: assistantId,
-            role: 'assistant',
-            text: '',
-            timestamp: new Date().toISOString(),
-            toolExecutions: result.toolExecutions,
-            proposals: result.proposals,
-            extractedTransactions: result.extractedTransactions,
-            modelUsed: result.modelUsed,
-          },
-        ]);
-        await loadUsage();
-        return;
-      }
-
-      // Add message placeholder for smooth typewriter reveal
       setMessages((prev) => [
         ...prev,
         {
           id: assistantId,
           role: 'assistant',
-          text: '',
+          text: showImmediately ? fullText : '',
           timestamp: new Date().toISOString(),
           toolExecutions: result.toolExecutions,
           proposals: result.proposals,
@@ -466,6 +386,11 @@ export const AssistantPage: React.FC = () => {
           modelUsed: result.modelUsed,
         },
       ]);
+      if (showImmediately) {
+        await loadUsage();
+        return;
+      }
+
       setStreamingMessageId(assistantId);
 
       // Stream text word-by-word like ChatGPT
@@ -741,9 +666,9 @@ export const AssistantPage: React.FC = () => {
                         })}
 
                         {m.extractedTransactions && m.extractedTransactions.length > 0 && (() => {
-                          const pendingCount = m.extractedTransactions.filter(
-                            (tx) => (txStatuses[tx.id] || 'pending') === 'pending'
-                          ).length;
+                          const pending = m.extractedTransactions.filter(
+                            (tx) => !tx.importBlockedReason && (!txStatuses[tx.id] || ['pending', 'error'].includes(txStatuses[tx.id]!))
+                          );
                           const addedCount = m.extractedTransactions.filter(
                             (tx) => txStatuses[tx.id] === 'added'
                           ).length;
@@ -760,15 +685,15 @@ export const AssistantPage: React.FC = () => {
                                     </span>
                                   )}
                                 </div>
-                                {pendingCount > 1 && (
+                                {pending.length > 1 && (
                                   <button
                                     type="button"
-                                    onClick={() => handleImportAll(m.extractedTransactions!)}
+                                    onClick={() => handleImportAll(pending)}
                                     disabled={isImportingBatch}
                                     className="h-8 px-3 rounded-lg text-[12px] font-medium bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
                                   >
                                     <Check className="w-3.5 h-3.5" />
-                                    <span>Import All ({pendingCount})</span>
+                                    <span>Add expenses ({pending.length})</span>
                                   </button>
                                 )}
                               </div>
@@ -779,7 +704,7 @@ export const AssistantPage: React.FC = () => {
                                   return (
                                     <div
                                       key={tx.id}
-                                      className="flex items-center justify-between gap-3 p-3 rounded-xl border border-cream-100 dark:border-white/[0.04] bg-cream-50/50 dark:bg-white/[0.02] transition-colors"
+                                      className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl border border-cream-100 dark:border-white/[0.04] bg-cream-50/50 dark:bg-white/[0.02] transition-colors"
                                     >
                                       <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
@@ -787,13 +712,15 @@ export const AssistantPage: React.FC = () => {
                                             {tx.merchant}
                                           </span>
                                           <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-deep-blue-50 dark:bg-white/[0.06] text-deep-blue-900/60 dark:text-white/60">
-                                            {tx.category || 'Expense'}
+                                            {transactionKindLabels[tx.kind]}
                                           </span>
                                         </div>
                                         <div className="mt-0.5 flex items-center gap-2 text-[12px] text-deep-blue-900/45 dark:text-white/40">
-                                          <span>{tx.date}</span>
-                                          <span>•</span>
-                                          <span className="capitalize">{tx.paymentMethod || 'upi'}</span>
+                                          <span>{tx.date || 'Date unclear'}</span>
+                                          <span>·</span>
+                                          <span>{tx.evidence === 'card_credit' ? 'Credit · Reduces card balance' : tx.evidence === 'card_charge' ? 'Debit · Card charge'
+                                            : tx.direction === 'credit' ? 'Credit · Money in' : tx.direction === 'debit' ? 'Debit · Money out' : 'Direction unclear'}</span>
+                                          {tx.category && <span>· {tx.category}</span>}
                                           {tx.notes && (
                                             <>
                                               <span>•</span>
@@ -801,16 +728,21 @@ export const AssistantPage: React.FC = () => {
                                             </>
                                           )}
                                         </div>
+                                        {tx.sourceFile && <span className="block truncate text-[11px] opacity-55">{tx.sourceFile}</span>}
+                                        {tx.importBlockedReason && tx.kind === 'expense' && (
+                                          <span className="block text-[11px] opacity-65">{tx.importBlockedReason}</span>
+                                        )}
                                       </div>
 
                                       <div className="flex items-center gap-3 shrink-0">
                                         <span className="font-semibold text-[14px] text-deep-blue-950 dark:text-white tabular-nums">
-                                          ₹{Number(tx.amount).toLocaleString('en-IN')}
+                                          {tx.currency === 'INR' ? '₹' : tx.currency === 'Unknown' ? '' : `${tx.currency} `}{tx.amount.toLocaleString('en-IN', { minimumFractionDigits: Number.isInteger(tx.amount) ? 0 : 2, maximumFractionDigits: 4 })}
                                         </span>
-                                        {status === 'pending' ? (
+                                        {tx.importBlockedReason ? null : status === 'pending' ? (
                                           <button
                                             type="button"
                                             onClick={() => handleAddTransaction(tx)}
+                                            disabled={isImportingBatch}
                                             className="h-8 px-2.5 rounded-lg text-[12px] font-medium bg-deep-blue-950 text-white dark:bg-white dark:text-black hover:opacity-90 transition-opacity"
                                           >
                                             Add to Transactions
@@ -825,6 +757,7 @@ export const AssistantPage: React.FC = () => {
                                           <button
                                             type="button"
                                             onClick={() => handleAddTransaction(tx)}
+                                            disabled={isImportingBatch}
                                             className="h-8 px-2.5 rounded-lg text-[12px] font-medium bg-rose-600 text-white"
                                           >
                                             Retry
@@ -907,6 +840,17 @@ export const AssistantPage: React.FC = () => {
                 </div>
               )}
 
+              {attachments.length > 0 && (
+                settings.privacyMode ? (
+                  <label className="flex items-center gap-2 px-3 pt-2 text-[12px]">
+                    <input type="checkbox" checked={allowCloudAttachments} onChange={(e) => setAllowCloudAttachments(e.target.checked)} />
+                    Allow Gemini to read files in this message if needed. Gemini receives the full file.
+                  </label>
+                ) : (
+                  <p className="px-3 pt-2 text-[12px]">Files that need cloud analysis are sent to Gemini in full.</p>
+                )
+              )}
+              {attachmentError && <p role="alert" className="px-3 pt-2 text-[12px] text-rose-600">{attachmentError}</p>}
               <div className="flex items-end gap-2 p-2 pl-3">
                 <input
                   ref={fileInputRef}
@@ -919,7 +863,7 @@ export const AssistantPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={isLoading}
+                  disabled={isLoading || readingFiles}
                   aria-label="Attach file or image"
                   title="Upload bank statement, bill, CSV, PDF, or receipt image"
                   className="grid place-items-center w-9 h-9 rounded-full shrink-0 text-deep-blue-900/50 dark:text-white/45 hover:text-deep-blue-950 dark:hover:text-white hover:bg-deep-blue-50/60 dark:hover:bg-white/[0.05] disabled:opacity-25 transition-colors mb-0.5"
@@ -952,7 +896,7 @@ export const AssistantPage: React.FC = () => {
                 />
                 <button
                   type="submit"
-                  disabled={(!inputMessage.trim() && attachments.length === 0) || isLoading}
+                  disabled={(!inputMessage.trim() && attachments.length === 0) || isLoading || readingFiles}
                   aria-label="Send"
                   className="grid place-items-center w-9 h-9 rounded-full shrink-0 bg-deep-blue-950 text-white dark:bg-white dark:text-black disabled:opacity-25 transition-opacity"
                 >

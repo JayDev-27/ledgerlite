@@ -3,7 +3,7 @@ import type { CsvParseResult, ColumnMapping, CsvField } from './types';
 /**
  * Parses raw CSV text respecting RFC 4180 quotes, multiline values, and commas
  */
-export function parseCsv(text: string): CsvParseResult {
+export function parseCsv(text: string, delimiter = ','): CsvParseResult {
   const rows: string[][] = [];
   let currentRow: string[] = [];
   let currentVal = '';
@@ -29,7 +29,7 @@ export function parseCsv(text: string): CsvParseResult {
     } else {
       if (char === '"') {
         inQuotes = true;
-      } else if (char === ',') {
+      } else if (char === delimiter) {
         currentRow.push(currentVal.trim());
         currentVal = '';
       } else if (char === '\n') {

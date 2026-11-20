@@ -1,6 +1,7 @@
 import { FunctionDeclaration, Type } from '@google/genai';
+import { todayInIndia } from '@/lib/periods/financialYear';
 import type { Repository } from '@/data/repository';
-import type { Transaction, Budget, Category, PaymentMethod } from '@/types';
+import type { Transaction, Budget, Category } from '@/types';
 import { sanitizeSensitiveText } from '@/lib/gemini/privacySanitizer';
 import type {
   QueryTransactionsArgs,
@@ -9,10 +10,65 @@ import type {
   GetBudgetStatusArgs,
   SetBudgetArgs,
   ProposeMemoryArgs,
-  ImportExtractedTransactionsArgs,
-  AddTransactionArgs,
-  ExtractedTransactionProposal,
 } from './types';
+
+import { reviewTransactions } from './transactionReview';
+
+const transactionFields: NonNullable<FunctionDeclaration['parameters']> = {
+  type: Type.OBJECT,
+  properties: {
+    date: { type: Type.STRING, description: 'Actual row date (YYYY-MM-DD), empty if unavailable. Never invent a date.' },
+    amount: { type: Type.NUMBER, description: 'Positive original currency magnitude, taken from the individual transaction row' },
+    merchant: { type: Type.STRING, description: 'Exact statement transaction description, or receipt merchant' },
+    currency: { type: Type.STRING, description: 'Original three-letter ISO currency code (e.g. INR). Use XXX when unknown. Never convert.' },
+    evidence: {
+      type: Type.STRING,
+      enum: ['bank_credit', 'bank_debit', 'card_charge', 'card_credit', 'paid_receipt', 'explicit_expense', 'unknown'],
+      description: 'Direction as shown by the source. bank_credit means a deposit or money received. bank_debit means money taken out. card_charge means a purchase or fee increasing amount owed. card_credit means a payment or credit reducing amount owed. Use explicit_expense only for an expense explicitly requested in chat without a document.',
+    },
+    kind: {
+      type: Type.STRING,
+      enum: ['expense', 'income', 'credit', 'refund', 'transfer', 'card_payment', 'cash_withdrawal', 'unknown'],
+      description: 'Economic nature of the row. A debit can be a transfer, cash withdrawal or card payment. A credit can be income, refund, card payment, or transfer.',
+    },
+    balanceBefore: { type: Type.NUMBER, description: 'Bank statement only. Exact preceding running balance when explicitly printed for the same account in chronological order. Omit if unavailable.' },
+    balanceAfter: { type: Type.NUMBER, description: 'Bank statement only. Exact running balance printed on this row. Omit if unavailable.' },
+    category: { type: Type.STRING, description: 'Suggested expense category' },
+    notes: { type: Type.STRING, description: 'Optional chat request notes. Omit from document extraction.' },
+    paymentMethod: {
+      type: Type.STRING, enum: ['upi', 'card', 'cash', 'net_banking', 'wallet'],
+      description: 'Payment method if shown by the source',
+    },
+  },
+  required: ['date', 'amount', 'merchant', 'currency', 'evidence', 'kind'],
+};
+
+export const DOCUMENT_TRANSACTION_TOOL: FunctionDeclaration = {
+  name: 'import_extracted_transactions',
+  description: 'Report individually posted transactions for review. Include incoming and outgoing rows. Exclude balances, totals, forecasts and unpaid amounts.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      transactions: {
+        type: Type.ARRAY,
+        items: {
+          ...transactionFields,
+          properties: {
+            ...transactionFields.properties,
+            page: { type: Type.INTEGER, description: 'One-based PDF page on which the actual row is visibly printed. Omit if unsure.' },
+          },
+        },
+      },
+      summary: { type: Type.STRING, description: 'Short plain-language description of the document or what made it unreadable. Omit names, account information and identifiers.' },
+      documentType: {
+        type: Type.STRING,
+        enum: ['bank_statement', 'card_statement', 'receipt', 'invoice', 'other'],
+        description: 'Type of the uploaded document',
+      },
+    },
+    required: ['transactions', 'documentType'],
+  },
+};
 
 export const CHAT_TOOLS_DECLARATIONS: FunctionDeclaration[] = [
   {
@@ -179,87 +235,11 @@ export const CHAT_TOOLS_DECLARATIONS: FunctionDeclaration[] = [
       required: ['kind', 'text'],
     },
   },
-  {
-    name: 'import_extracted_transactions',
-    description:
-      'Propose one or more financial transactions extracted from an uploaded receipt, bill, bank statement, or user prompt for ledger review and 1-click import.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        transactions: {
-          type: Type.ARRAY,
-          description: 'List of extracted transactions to propose for user ledger import',
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              date: {
-                type: Type.STRING,
-                description: 'Transaction date in YYYY-MM-DD format',
-              },
-              amount: {
-                type: Type.NUMBER,
-                description: 'Transaction amount in INR (positive number)',
-              },
-              merchant: {
-                type: Type.STRING,
-                description: 'Merchant, vendor, payee, or billing entity name',
-              },
-              category: {
-                type: Type.STRING,
-                description: 'Category name (e.g. Groceries, Dining Out, Utilities) or category ID',
-              },
-              paymentMethod: {
-                type: Type.STRING,
-                enum: ['upi', 'card', 'cash', 'net_banking', 'wallet'],
-                description: 'Payment method if identifiable',
-              },
-              notes: {
-                type: Type.STRING,
-                description: 'Optional notes, bill numbers, or context',
-              },
-            },
-            required: ['date', 'amount', 'merchant'],
-          },
-        },
-      },
-      required: ['transactions'],
-    },
-  },
+  DOCUMENT_TRANSACTION_TOOL,
   {
     name: 'add_transaction',
-    description:
-      'Propose a single transaction specified by the user or extracted from a document for ledger review and import.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        date: {
-          type: Type.STRING,
-          description: 'Transaction date in YYYY-MM-DD format',
-        },
-        amount: {
-          type: Type.NUMBER,
-          description: 'Transaction amount in INR (positive number)',
-        },
-        merchant: {
-          type: Type.STRING,
-          description: 'Merchant or payee name',
-        },
-        category: {
-          type: Type.STRING,
-          description: 'Category name or ID',
-        },
-        paymentMethod: {
-          type: Type.STRING,
-          enum: ['upi', 'card', 'cash', 'net_banking', 'wallet'],
-          description: 'Payment method',
-        },
-        notes: {
-          type: Type.STRING,
-          description: 'Notes or receipt details',
-        },
-      },
-      required: ['date', 'amount', 'merchant'],
-    },
+    description: 'Propose a single transaction explicitly requested by the user for review.',
+    parameters: transactionFields,
   },
 ];
 
@@ -497,10 +477,11 @@ export async function executeTool(
       const monthNum = parseInt(mStr, 10) || (new Date().getMonth() + 1);
       const daysInMonth = new Date(year, monthNum, 0).getDate();
 
-      const currentMonth = new Date().toISOString().slice(0, 7);
+      const today = todayInIndia();
+      const currentMonth = today.slice(0, 7);
       let daysElapsed = daysInMonth;
       if (targetMonth === currentMonth) {
-        daysElapsed = Math.min(daysInMonth, new Date().getDate());
+        daysElapsed = Math.min(daysInMonth, Number(today.slice(8)));
       } else if (targetMonth > currentMonth) {
         daysElapsed = 0;
       }
@@ -568,7 +549,8 @@ export async function executeTool(
 
     case 'set_budget': {
       const bArgs = args as unknown as SetBudgetArgs;
-      const targetMonth = bArgs.month?.trim() || '2026-11';
+      const targetMonth = bArgs.month?.trim() || todayInIndia().slice(0, 7);
+      if (!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(targetMonth)) throw new Error('Invalid budget month.');
       const existing = await repo.getBudgetForMonth(targetMonth);
 
       const existingLimits: Record<string, number> = existing?.categoryLimits ? { ...existing.categoryLimits } : {};
@@ -652,78 +634,16 @@ export async function executeTool(
       };
     }
 
-    case 'import_extracted_transactions': {
-      const impArgs = args as unknown as ImportExtractedTransactionsArgs;
-      const rawList = Array.isArray(impArgs.transactions) ? impArgs.transactions : [];
-      const proposals: ExtractedTransactionProposal[] = rawList.map((item, idx) => {
-        const catInput = item.category?.trim() || 'Groceries';
-        const canonicalCatId = resolveCategoryId(catInput, categories);
-        const resolvedCatName = categoryMap.get(canonicalCatId) || catInput;
-
-        let dateStr = item.date?.trim() || '2026-11-15';
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-          dateStr = new Date().toISOString().slice(0, 10);
-        }
-
-        const validPaymentMethods: PaymentMethod[] = ['upi', 'card', 'cash', 'net_banking', 'wallet'];
-        const paymentMethod = validPaymentMethods.includes(item.paymentMethod as PaymentMethod)
-          ? (item.paymentMethod as PaymentMethod)
-          : 'upi';
-
-        return {
-          id: `tx-prop-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
-          date: dateStr,
-          amount: Math.round(Math.abs(Number(item.amount) || 0) * 100) / 100,
-          merchant: privacyMode ? sanitizeSensitiveText(item.merchant || 'Unknown Merchant') : (item.merchant || 'Unknown Merchant'),
-          categoryId: canonicalCatId,
-          category: resolvedCatName,
-          paymentMethod,
-          notes: item.notes ? (privacyMode ? sanitizeSensitiveText(item.notes) : item.notes) : undefined,
-          confidence: 0.95,
-        };
-      });
-
-      return {
-        status: 'proposed',
-        count: proposals.length,
-        transactions: proposals,
-        message: `Extracted ${proposals.length} transaction(s) ready for ledger review and import.`,
-      };
-    }
-
+    case 'import_extracted_transactions':
     case 'add_transaction': {
-      const singleArgs = args as unknown as AddTransactionArgs;
-      const catInput = singleArgs.category?.trim() || 'Groceries';
-      const canonicalCatId = resolveCategoryId(catInput, categories);
-      const resolvedCatName = categoryMap.get(canonicalCatId) || catInput;
-
-      let dateStr = singleArgs.date?.trim() || '2026-11-15';
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-        dateStr = new Date().toISOString().slice(0, 10);
-      }
-
-      const validPaymentMethods: PaymentMethod[] = ['upi', 'card', 'cash', 'net_banking', 'wallet'];
-      const paymentMethod = validPaymentMethods.includes(singleArgs.paymentMethod as PaymentMethod)
-        ? (singleArgs.paymentMethod as PaymentMethod)
-        : 'upi';
-
-      const proposal: ExtractedTransactionProposal = {
-        id: `tx-prop-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        date: dateStr,
-        amount: Math.round(Math.abs(Number(singleArgs.amount) || 0) * 100) / 100,
-        merchant: privacyMode ? sanitizeSensitiveText(singleArgs.merchant || 'Unknown Merchant') : (singleArgs.merchant || 'Unknown Merchant'),
-        categoryId: canonicalCatId,
-        category: resolvedCatName,
-        paymentMethod,
-        notes: singleArgs.notes ? (privacyMode ? sanitizeSensitiveText(singleArgs.notes) : singleArgs.notes) : undefined,
-        confidence: 0.95,
-      };
-
+      const rows = name === 'add_transaction' ? [args] : args.transactions;
+      const items = Array.isArray(rows) ? rows : [];
+      const transactions = reviewTransactions(items, categories, privacyMode, false);
       return {
         status: 'proposed',
-        count: 1,
-        transactions: [proposal],
-        message: `Transaction for ₹${proposal.amount} at ${proposal.merchant} ready for ledger review and import.`,
+        count: transactions.length,
+        rejected: items.length - transactions.length,
+        transactions,
       };
     }
 
