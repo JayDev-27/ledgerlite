@@ -190,7 +190,9 @@ export const AssistantPage: React.FC = () => {
     if (chatEndRef.current) {
       try {
         chatEndRef.current.scrollIntoView({ behavior, block: 'end' });
-      } catch {}
+      } catch {
+        // Scrolling is cosmetic; ignore browsers without smooth scroll support.
+      }
     }
   };
 

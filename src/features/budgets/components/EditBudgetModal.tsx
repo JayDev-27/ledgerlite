@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Check, Calculator } from 'lucide-react';
 import { Budget, Category } from '@/types';
 import { formatCurrency } from '@/lib/formatters';
@@ -24,7 +24,7 @@ export const EditBudgetModal: React.FC<EditBudgetModalProps> = ({
   onSave,
   preselectedCategoryId,
 }) => {
-  const topCategories = categories.filter((c) => !c.parentId);
+  const topCategories = useMemo(() => categories.filter((c) => !c.parentId), [categories]);
 
   const [totalLimit, setTotalLimit] = useState<number>(100000);
   const [categoryLimits, setCategoryLimits] = useState<Record<string, number>>({});
@@ -47,7 +47,7 @@ export const EditBudgetModal: React.FC<EditBudgetModalProps> = ({
       setCategoryLimits(defaults);
       setRollover(true);
     }
-  }, [budget, month, categories]);
+  }, [budget, month, topCategories]);
 
   if (!isOpen) return null;
 

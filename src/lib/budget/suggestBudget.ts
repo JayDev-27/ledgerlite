@@ -103,7 +103,6 @@ export function generateDeterministicBudget(
   let totalLimit = 0;
   let needTotal = 0;
   let wantTotal = 0;
-  let savingsTotal = 0;
 
   for (const cat of categorySummaries) {
     const avg = cat.averageSpend;
@@ -124,7 +123,6 @@ export function generateDeterministicBudget(
       // Savings allocation: maintain or boost by 10%
       proposed = avg > 0 ? Math.round((avg * 1.1) / 500) * 500 : 5000;
       reason = `Targeting wealth accumulation aligned with 20% savings rule`;
-      savingsTotal += proposed;
     }
 
     categoryLimits[cat.categoryId] = proposed;
@@ -259,7 +257,6 @@ Provide a concise, encouraging rationale for each category and an overall budget
         let calculatedTotal = 0;
         let needTotal = 0;
         let wantTotal = 0;
-        let savingsTotal = 0;
 
         for (const cat of aggregation.categorySummaries) {
           const match = json.items.find((it) => it.categoryId === cat.categoryId);
@@ -276,7 +273,6 @@ Provide a concise, encouraging rationale for each category and an overall budget
 
           if (cat.categoryType === 'need') needTotal += proposed;
           else if (cat.categoryType === 'want') wantTotal += proposed;
-          else savingsTotal += proposed;
 
           items.push({
             categoryId: cat.categoryId,

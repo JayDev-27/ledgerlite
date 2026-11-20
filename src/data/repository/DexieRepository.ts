@@ -86,7 +86,7 @@ export class DexieRepository implements Repository {
     }
 
     // Secondary path: In-memory filter pipeline for combined multi-field criteria
-    let collection = this.db.transactions.toCollection();
+    const collection = this.db.transactions.toCollection();
     let items = await collection.toArray();
 
     if (filter) {

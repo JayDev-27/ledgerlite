@@ -54,7 +54,6 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
 
-  if (!isOpen) return null;
 
   const resetState = () => {
     setStep('upload');
@@ -71,6 +70,8 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
   };
 
   const modalRef = useFocusTrap<HTMLDivElement>({ isOpen, onClose: handleClose });
+
+  if (!isOpen) return null;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

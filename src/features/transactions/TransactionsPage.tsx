@@ -115,7 +115,7 @@ export const TransactionsPage: React.FC = () => {
   });
 
   // Calculate Date Preset Boundaries
-  const getDateRangeForPreset = (preset: typeof datePreset) => {
+  const getDateRangeForPreset = useCallback((preset: typeof datePreset) => {
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
 
@@ -148,7 +148,7 @@ export const TransactionsPage: React.FC = () => {
       return { start: startDate || undefined, end: endDate || undefined };
     }
     return { start: undefined, end: undefined };
-  };
+  }, [startDate, endDate]);
 
   // Main Data Loader
   const loadData = useCallback(async () => {
@@ -197,6 +197,7 @@ export const TransactionsPage: React.FC = () => {
       setLoading(false);
     }
   }, [
+    getDateRangeForPreset,
     page,
     pageSize,
     sortBy,
@@ -204,8 +205,6 @@ export const TransactionsPage: React.FC = () => {
     activeTab,
     searchQuery,
     datePreset,
-    startDate,
-    endDate,
     selectedCategory,
     selectedSubcategory,
     selectedPayment,
