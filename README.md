@@ -100,7 +100,7 @@ The storage mode is chosen by the environment — nothing to fork.
 ## ✦ Quick start
 
 ```bash
-git clone https://github.com/satiricalguru/ledgerlite.git
+git clone https://github.com/JayDev-27/ledgerlite.git
 cd ledgerlite
 npm install
 npm run dev          # http://localhost:5173 — local mode, no accounts needed
